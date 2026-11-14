@@ -10,6 +10,7 @@ const DATA_FILE = resolve(process.env.DATA_FILE || "./data/sevasetu.json");
 const ORIGINS = (process.env.ALLOWED_ORIGINS || "http://localhost:5173,http://localhost:4173")
   .split(",").map((origin) => origin.trim()).filter(Boolean);
 const TWILIO = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_VERIFY_SERVICE_SID;
+const DEMO_OTP = process.env.DEMO_OTP === "true";
 const { Pool } = pg;
 const database = process.env.DATABASE_URL ? new Pool({ connectionString: process.env.DATABASE_URL, ...(process.env.PGSSL === "true" ? { ssl: { rejectUnauthorized: false } } : {}) }) : null;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
@@ -159,12 +160,12 @@ const server = createServer(async (req, res) => {
       const data = await body(req); const phone = normalizePhone(data.phone);
       if (phone.replace(/\D/g, "").length < 10) return json(res, 400, { error: "Enter a valid phone number" });
       if (TWILIO) await sendTwilioCode(phone);
-      else if (process.env.NODE_ENV === "production") return json(res, 503, { error: "SMS verification is not configured. Set the Twilio Verify environment variables." });
+      else if (process.env.NODE_ENV === "production" && !DEMO_OTP) return json(res, 503, { error: "SMS verification is not configured. Set the Twilio Verify environment variables." });
       else {
         const code = String(randomInt(100000, 1000000));
         store.otp = store.otp.filter((item) => item.phone !== phone);
         store.otp.push({ phone, code, expiresAt: Date.now() + 5 * 60_000 }); await persist();
-        return json(res, 200, { message: "Development code generated", developmentCode: code });
+        return json(res, 200, { message: DEMO_OTP ? "Demo code generated" : "Development code generated", developmentCode: code, demoMode: DEMO_OTP });
       }
       return json(res, 200, { message: "Verification code sent" });
     }

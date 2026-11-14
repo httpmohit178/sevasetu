@@ -74,6 +74,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [authError, setAuthError] = useState('');
   const [developmentCode, setDevelopmentCode] = useState('');
+  const [demoOtp, setDemoOtp] = useState(false);
   const navigate = useNavigate();
 
   const handleSendOTP = async () => {
@@ -81,8 +82,9 @@ export default function LoginPage() {
     setIsLoading(true);
     setAuthError('');
     try {
-      const result = await apiRequest<{ developmentCode?: string }>('/auth/otp', { method: 'POST', body: JSON.stringify({ phone }) });
+      const result = await apiRequest<{ developmentCode?: string; demoMode?: boolean }>('/auth/otp', { method: 'POST', body: JSON.stringify({ phone }) });
       setDevelopmentCode(result.developmentCode || '');
+      setDemoOtp(Boolean(result.demoMode));
       setCanResend(false);
       setStep('otp');
     } catch (error) { setAuthError(error instanceof Error ? error.message : 'Could not send a verification code'); }
@@ -336,7 +338,7 @@ export default function LoginPage() {
                 <p className="text-muted-foreground text-sm mb-6">
                   {lang === 'hi' ? `+91 ${phone} पर भेजा गया` : `Sent to +91 ${phone}`}
                 </p>
-                {developmentCode && <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-center text-sm text-amber-800">Local development code: <strong>{developmentCode}</strong></p>}
+                {developmentCode && <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-center text-sm text-amber-800">{lang === 'hi' ? (demoOtp ? 'डेमो OTP:' : 'स्थानीय OTP:') : (demoOtp ? 'Demo OTP:' : 'Local development code:')} <strong>{developmentCode}</strong></p>}
 
                 <div className="mb-6">
                   <OTPInput onComplete={handleOTPComplete} />

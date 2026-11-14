@@ -38,15 +38,23 @@ Locally, the backend uses `backend/data/sevasetu.json` unless `DATABASE_URL` is 
 
 ## Deploy backend + database to Render
 
-1. Push the extracted project to a GitHub repository. Do not commit `.env` files or API keys.
-2. In Render select **New → Blueprint**, connect the repository, and set the Blueprint file path to `backend/render.yaml`.
-3. Render creates the backend service and a managed PostgreSQL database. This database plan is paid; review Render pricing before deployment.
-4. Add the Groq key to the Render service environment as `GROQ_API_KEY`. Set `ALLOWED_ORIGINS` to your Vercel frontend URL after it exists. Add Twilio Verify credentials if you need production SMS OTP.
-5. After deploy, open `https://<render-service>.onrender.com/api/health`; look for `status: "ok"`, `database: "postgresql"`, and `ai: "groq"`.
+For a no-cost college demo, the included Blueprint uses Render's free web service and an external Neon free Postgres database. Render's own free Postgres is not used because Render says those databases expire after 30 days. Check current quotas before deploying: Render free services sleep after 15 idle minutes, Neon Free has monthly compute/storage/network caps, and Vercel Hobby is for noncommercial projects. Free plans and their limits can change.
+
+1. Create a free Neon project at [Neon](https://console.neon.tech/). Choose a region close to Render Singapore, open the **Connect** panel, choose the pooled connection option, and copy the connection string. It should begin with `postgresql://` and include `sslmode=require`; keep it secret.
+2. Push the extracted project to a GitHub repository. Do not commit `.env` files or API keys.
+3. In Render select **New → Blueprint**, connect the repository, and set the Blueprint file path to `backend/render.yaml`.
+4. During Blueprint setup, enter the prompted values:
+   - `DATABASE_URL`: the Neon pooled connection string from step 1.
+   - `ALLOWED_ORIGINS`: initially `http://localhost:5173`; replace it with your Vercel URL after the frontend deploys.
+   - `GROQ_API_KEY`: create a key at [Groq API Keys](https://console.groq.com/keys). Keep it only in Render.
+   - Render generates `SESSION_SECRET`. The Blueprint sets `NODE_ENV=production`, `PGSSL=true`, `GROQ_MODEL`, and `DEMO_OTP=true` automatically.
+5. Deploy the Blueprint. The API creates its PostgreSQL table automatically. Open `https://<render-service>.onrender.com/api/health`; expect `status: "ok"`, `database: "postgresql"`, and `ai: "groq"`.
+
+**Demo sign-in:** `DEMO_OTP=true` shows the one-time code in the login page instead of sending SMS. Anyone requesting a code can see it. Use fictional/test data only. Turn `DEMO_OTP` off and configure Twilio Verify before accepting real accounts; SMS is not part of the no-cost setup.
 
 ## Deploy frontend to Vercel
 
-1. Import the same GitHub repository into Vercel and set **Root Directory** to `frontend`.
+1. Use Vercel's free Hobby plan for a personal, noncommercial college demo. Import the same GitHub repository and set **Root Directory** to `frontend`.
 2. Set `VITE_API_URL` in Vercel to `https://<render-service>.onrender.com/api` for Production (and Preview if desired).
 3. Deploy the frontend, copy its Vercel URL, then add that exact origin to Render's `ALLOWED_ORIGINS` and redeploy the backend if needed.
 4. Redeploy Vercel after changing `VITE_API_URL`, because Vite embeds it during the build.
@@ -54,7 +62,7 @@ Locally, the backend uses `backend/data/sevasetu.json` unless `DATABASE_URL` is 
 ## Important behavior
 
 - GPS sharing requires HTTPS (localhost works for development), browser location permission, and the provider dashboard open while sharing.
-- Production phone OTP requires Twilio Verify credentials. Online UPI/card processing, provider payouts, identity/KYC checks, and official government scheme submissions are not integrated.
+- The free Render API sleeps after 15 minutes idle; its first request after sleep can take about a minute. Neon Free and Groq Free enforce quotas; database/AI use may pause when limits are reached. Online UPI/card processing, provider payouts, identity/KYC checks, and official government scheme submissions are not integrated.
 - PostgreSQL stores the current app state as one JSONB document. Keep one API instance for this version; migrate to separate relational tables and transaction/locking logic before scaling to multiple instances.
 
 ## Checks
