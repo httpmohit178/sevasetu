@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { Activity, ArrowRight, Building2, CalendarDays, Gift, LayoutDashboard, MapPin, Plus, Zap } from 'lucide-react';
 import DashboardLayout, { NavItem } from '@/layouts/DashboardLayout';
 import { apiRequest } from '../lib/api-client';
+import { PhotoBanner } from '../components/ui/photo-banner';
+import { imageSources } from '../lib/image-sources';
 
 type Lang = 'en' | 'hi';
 type Booking = { id: string; serviceName: string; status: string; amount: number; createdAt: string; scheduledAt?: string | null; providerName?: string | null };
@@ -44,6 +46,7 @@ export default function UserDashboard() {
     <title>{t('My dashboard – SevaSetu', 'मेरा डैशबोर्ड – सेवा सेतु')}</title>
     <main className="mx-auto max-w-5xl space-y-5 p-4 lg:p-6">
       <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-primary to-primary/80 p-5 text-white"><div><p className="text-sm text-white/75">{t('Namaste', 'नमस्ते')} 🙏</p><h1 className="text-2xl font-black">{user?.name || t('Your SevaSetu account', 'आपका सेवा सेतु अकाउंट')}</h1><p className="text-sm text-white/80">{t('Your bookings, status and SevaPoints.', 'आपकी बुकिंग, स्थिति और सेवा पॉइंट्स।')}</p></div><Link to="/services" className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-primary"><Plus size={16} />{t('Book a service', 'सेवा बुक करें')}</Link></header>
+      <PhotoBanner src={imageSources.rural} alt="Rural farm with a grain silo and fields at sunset" caption="Rural farm with a grain silo and fields at sunset" />
       {error && <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800">{error}{!user && <Link to="/login" className="ml-2 font-bold underline">{t('Sign in', 'साइन इन')}</Link>}</p>}
       <div className="grid gap-3 sm:grid-cols-3"><div className="rounded-xl border border-border bg-card p-4"><p className="text-xs text-muted-foreground">{t('Total bookings', 'कुल बुकिंग')}</p><p className="mt-1 text-2xl font-bold">{bookings.length}</p></div><div className="rounded-xl border border-border bg-card p-4"><p className="text-xs text-muted-foreground">{t('Active bookings', 'सक्रिय बुकिंग')}</p><p className="mt-1 text-2xl font-bold">{bookings.filter((item) => !['completed', 'cancelled'].includes(item.status)).length}</p></div><div className="rounded-xl border border-border bg-card p-4"><p className="text-xs text-muted-foreground">{t('SevaPoints', 'सेवा पॉइंट्स')}</p><p className="mt-1 text-2xl font-bold">{points}</p></div></div>
       <section className="rounded-2xl border border-border bg-card"><div className="flex items-center justify-between border-b border-border p-4"><h2 className="font-bold">{t('Recent bookings', 'हाल की बुकिंग')}</h2><Link to="/tracker" className="flex items-center gap-1 text-xs font-semibold text-primary">{t('Open tracker', 'ट्रैकर खोलें')} <ArrowRight size={13} /></Link></div>

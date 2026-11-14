@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, Clock, MapPin, Navigation, Phone, RefreshCw, Star, UserRound, XCircle } from 'lucide-react';
 import { apiRequest } from '../lib/api-client';
+import { PhotoBanner } from '../components/ui/photo-banner';
+import { imageSources } from '../lib/image-sources';
 
 type Lang = 'en' | 'hi';
 type Point = { latitude: number; longitude: number; updatedAt?: string };
@@ -32,29 +34,37 @@ function distanceKm(a: Point, b: Point) {
 
 export default function TrackerPage() {
   const [lang, setLang] = useState<Lang>('en');
+  const [hasSession, setHasSession] = useState(() => Boolean(localStorage.getItem('sevasetu-token')));
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [activeId, setActiveId] = useState('');
   const [customerLocation, setCustomerLocation] = useState<Point | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => Boolean(localStorage.getItem('sevasetu-token')));
   const [error, setError] = useState('');
   const [rating, setRating] = useState(0);
   const [reviewSaved, setReviewSaved] = useState(false);
 
   const refresh = useCallback(async () => {
+    if (!localStorage.getItem('sevasetu-token')) { setHasSession(false); setBookings([]); setLoading(false); setError(''); return; }
+    setHasSession(true);
     try {
       const result = await apiRequest<{ bookings: Booking[] }>('/bookings');
       setBookings(result.bookings);
       setActiveId((current) => result.bookings.some((item) => item.id === current) ? current : result.bookings[0]?.id || '');
       setError('');
-    } catch (e) { setError(e instanceof Error ? e.message : 'Could not load bookings'); }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Could not load bookings';
+      if (message === 'Sign in to continue') setHasSession(false);
+      setError(message);
+    }
     finally { setLoading(false); }
   }, []);
 
   useEffect(() => {
+    if (!hasSession) return;
     void refresh();
     const interval = window.setInterval(() => void refresh(), 8000);
     return () => window.clearInterval(interval);
-  }, [refresh]);
+  }, [refresh, hasSession]);
 
   const active = bookings.find((booking) => booking.id === activeId) || null;
   const mapPoint = active?.providerLocation || customerLocation;
@@ -103,9 +113,11 @@ export default function TrackerPage() {
         </div>
       </div>
     </header>
+    <div className="container mx-auto max-w-5xl px-4 pt-5"><PhotoBanner src={imageSources.streets} alt="City skyline and buildings" caption="City skyline and buildings" /></div>
     <main className="container mx-auto max-w-5xl px-4 py-6">
-      {error && <p role="alert" className="mb-4 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
-      {loading ? <p className="py-12 text-center text-muted-foreground">{t('Loading your bookings…', 'आपकी बुकिंग लोड हो रही हैं…')}</p>
+      {!hasSession && <div role="status" className="mb-5 rounded-2xl border border-primary/20 bg-primary/5 p-6 text-center"><h2 className="font-bold">{t('Sign in to see your bookings', 'अपनी बुकिंग देखने के लिए साइन इन करें')}</h2><p className="my-2 text-sm text-muted-foreground">{t('You can browse services and schemes without an account. Sign in to view booking details and live provider locations.', 'आप बिना खाते के सेवाएं और योजनाएं देख सकते हैं। बुकिंग और लाइव लोकेशन देखने के लिए साइन इन करें।')}</p><Link to="/login" state={{ from: '/tracker' }} className="inline-block rounded-full bg-primary px-5 py-2 text-sm font-bold text-white">{t('Sign in', 'साइन इन')}</Link></div>}
+      {error && hasSession && <p role="alert" className="mb-4 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
+      {!hasSession ? null : loading ? <p className="py-12 text-center text-muted-foreground">{t('Loading your bookings…', 'आपकी बुकिंग लोड हो रही हैं…')}</p>
         : bookings.length === 0 ? <div className="rounded-2xl border border-border bg-card p-8 text-center"><MapPin className="mx-auto mb-3 text-primary" /><h2 className="font-bold">{t('No bookings yet', 'अभी कोई बुकिंग नहीं')}</h2><p className="my-2 text-sm text-muted-foreground">{t('Bookings you make will appear here with their live status.', 'आपकी बुकिंग यहाँ उनकी मौजूदा स्थिति के साथ दिखेंगी।')}</p><Link className="inline-block rounded-full bg-primary px-5 py-2 text-sm font-bold text-white" to="/services">{t('Browse services', 'सेवाएं देखें')}</Link></div>
         : <div className="grid gap-5 lg:grid-cols-[300px_1fr]">
           <section className="space-y-3">

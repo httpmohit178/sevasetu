@@ -3,18 +3,20 @@ const photo = (id: string, width = 1200) =>
   `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${width}&q=85`;
 
 export const imageSources = {
-  rural: photo('photo-1500382017468-9049fed747ef'),
-  urban: photo('photo-1521737711867-e3b97375f902'),
-  search: photo('photo-1581578731548-c64695cc6952'),
-  provider: photo('photo-1621905251189-08b45d6a269e'),
-  artisan: photo('photo-1678082309214-3b2941e387f8'),
-  agriculture: photo('photo-1500382017468-9049fed747ef', 900),
+  rural: photo('photo-1768902730346-ffcde810c7f2'),
+  urban: photo('photo-1603201667230-bd139210db18'),
+  search: photo('photo-1628320281190-89b24da58b0f'),
+  provider: photo('photo-1749532125405-70950966b0e5'),
+  artisan: photo('photo-1727344513672-220f20bef9c8'),
+  agriculture: photo('photo-1768902730346-ffcde810c7f2', 900),
   healthcare: photo('photo-1576091160399-112ba8d25d1d', 900),
   education: photo('photo-1503676260728-1c00da094a0b', 900),
   transport: photo('photo-1511919884226-fd3cad34687c', 900),
-  home: photo('photo-1600585154340-be6161a56a0c', 900),
+  home: photo('photo-1771366260867-7e07094579d7', 900),
   beauty: photo('photo-1560869713-7d0a29430803', 900),
   food: photo('photo-1556911220-e15b29be8c8f', 900),
+  community: photo('photo-1603201667230-bd139210db18'),
+  streets: photo('photo-1480714378408-67cf0d13bc1b', 1000),
 } as const;
 
 export function serviceImage(category: string, name: string): string {

@@ -61,12 +61,12 @@ export default function Footer() {
             </h4>
             <ul className="space-y-2">
               {[
-                { en: 'Home Services', hi: 'घरेलू सेवाएं', href: '/services/home' },
-                { en: 'Agriculture', hi: 'कृषि सेवाएं', href: '/services/agriculture' },
-                { en: 'Handicrafts', hi: 'हस्तशिल्प', href: '/services/handicrafts' },
-                { en: 'Healthcare', hi: 'स्वास्थ्य सेवा', href: '/services/healthcare' },
-                { en: 'Education', hi: 'शिक्षा', href: '/services/education' },
-                { en: 'Emergency', hi: 'आपातकाल', href: '/services/emergency' },
+                { en: 'Home Services', hi: 'घरेलू सेवाएं', href: '/services?category=home' },
+                { en: 'Agriculture', hi: 'कृषि सेवाएं', href: '/services?category=agri' },
+                { en: 'Education', hi: 'शिक्षा', href: '/services?category=edu' },
+                { en: 'Beauty', hi: 'सौंदर्य', href: '/services?category=beauty' },
+                { en: 'Food', hi: 'खाना', href: '/services?category=food' },
+                { en: 'Transport', hi: 'परिवहन', href: '/services?category=transport' },
               ].map((item) => (
                 <li key={item.href}>
                   <Link to={item.href} className="text-sm text-white/60 hover:text-primary transition-colors">
@@ -84,12 +84,12 @@ export default function Footer() {
             </h4>
             <ul className="space-y-2">
               {[
-                { en: 'Find Providers', hi: 'प्रदाता खोजें', href: '/providers' },
+                { en: 'Find Providers', hi: 'प्रदाता खोजें', href: '/services' },
                 { en: 'Government Schemes', hi: 'सरकारी योजनाएं', href: '/schemes' },
                 { en: 'Join as Provider', hi: 'प्रदाता बनें', href: '/join' },
                 { en: 'Rewards Program', hi: 'पुरस्कार कार्यक्रम', href: '/rewards' },
                 { en: 'AI Assistant', hi: 'AI सहायक', href: '/assistant' },
-                { en: 'About Us', hi: 'हमारे बारे में', href: '/about' },
+                { en: 'About Us', hi: 'हमारे बारे में', href: '/' },
               ].map((item) => (
                 <li key={item.href}>
                   <Link to={item.href} className="text-sm text-white/60 hover:text-primary transition-colors">

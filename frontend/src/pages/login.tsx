@@ -1,14 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Phone, ArrowRight, ArrowLeft, Shield, CheckCircle,
   Globe, Zap, Star, Users, RefreshCw
 } from 'lucide-react';
 import { apiRequest } from '../lib/api-client';
+import { SmartImage } from '../components/ui/smart-image';
+import { PhotoBanner } from '../components/ui/photo-banner';
+import { imageSources } from '../lib/image-sources';
 
 type Lang = 'en' | 'hi';
-type Step = 'phone' | 'otp' | 'profile' | 'success';
+type Step = 'phone' | 'email' | 'otp' | 'profile' | 'success';
 
 // ─── OTP Input ────────────────────────────────────────────────────────────────
 function OTPInput({ onComplete }: { onComplete: (otp: string) => void }) {
@@ -67,6 +70,10 @@ export default function LoginPage() {
   const [lang, setLang] = useState<Lang>('en');
   const [step, setStep] = useState<Step>('phone');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [emailPassword, setEmailPassword] = useState('');
+  const [emailName, setEmailName] = useState('');
+  const [emailMode, setEmailMode] = useState<'login' | 'register'>('login');
   const [canResend, setCanResend] = useState(false);
   const [resendKey, setResendKey] = useState(0);
   const [name, setName] = useState('');
@@ -76,6 +83,27 @@ export default function LoginPage() {
   const [developmentCode, setDevelopmentCode] = useState('');
   const [demoOtp, setDemoOtp] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const requestedPath = (location.state as { from?: string } | null)?.from || new URLSearchParams(location.search).get('redirect');
+  const redirectPath = requestedPath?.startsWith('/') && !requestedPath.startsWith('//') ? requestedPath : '';
+  const navigateAfterLogin = (role?: string) => navigate(redirectPath || (role === 'provider' ? '/provider-dashboard' : '/dashboard'), { replace: true });
+
+  const handleEmailSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsLoading(true);
+    setAuthError('');
+    try {
+      const endpoint = emailMode === 'register' ? '/auth/register' : '/auth/login';
+      const payload = emailMode === 'register'
+        ? { name: emailName, email, password: emailPassword }
+        : { email, password: emailPassword };
+      const result = await apiRequest<{ token: string; user: { role?: string } }>(endpoint, { method: 'POST', body: JSON.stringify(payload) });
+      localStorage.setItem('sevasetu-token', result.token);
+      window.dispatchEvent(new Event('sevasetu-auth-change'));
+      navigateAfterLogin(result.user.role);
+    } catch (error) { setAuthError(error instanceof Error ? error.message : 'Could not sign in'); }
+    finally { setIsLoading(false); }
+  };
 
   const handleSendOTP = async () => {
     if (phone.replace(/\D/g, '').length < 10) return;
@@ -98,7 +126,8 @@ export default function LoginPage() {
       const result = await apiRequest<{ token: string; user: { name?: string; city?: string } }>('/auth/verify', { method: 'POST', body: JSON.stringify({ phone, code: otp }) });
       localStorage.setItem('sevasetu-token', result.token);
       setName(result.user.name || ''); setCity(result.user.city || ''); setStep(result.user.name ? 'success' : 'profile');
-      if (result.user.name) setTimeout(() => navigate('/dashboard'), 1000);
+      window.dispatchEvent(new Event('sevasetu-auth-change'));
+      if (result.user.name) setTimeout(() => navigateAfterLogin(), 1000);
     } catch (error) { setAuthError(error instanceof Error ? error.message : 'Could not verify the code'); }
     finally { setIsLoading(false); }
   };
@@ -110,13 +139,10 @@ export default function LoginPage() {
     try {
       await apiRequest('/auth/profile', { method: 'PATCH', body: JSON.stringify({ name, city }) });
       setStep('success');
-      setTimeout(() => navigate('/dashboard'), 1200);
+      window.dispatchEvent(new Event('sevasetu-auth-change'));
+      setTimeout(() => navigateAfterLogin(), 1200);
     } catch (error) { setAuthError(error instanceof Error ? error.message : 'Could not save your profile'); }
     finally { setIsLoading(false); }
-  };
-
-  const handleGoogleLogin = async () => {
-    setAuthError('Google sign-in is not configured for this deployment. Use your phone number instead.');
   };
 
   return (
@@ -126,8 +152,9 @@ export default function LoginPage() {
 
       {/* ── Left Panel (desktop) ───────────────────────────────────────────── */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-secondary via-secondary/90 to-primary flex-col justify-between p-12">
+        <SmartImage src={imageSources.community} alt="Colleagues collaborating around a table" className="absolute inset-0 h-full w-full opacity-25" />
         {/* Background decoration */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(255,255,255,0.12)_0%,transparent_60%)]" />
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-950/80 via-emerald-900/65 to-orange-900/75" />
         <div className="absolute bottom-0 right-0 w-80 h-80 rounded-full bg-white/5 translate-x-1/3 translate-y-1/3" />
         <div className="absolute top-1/3 -left-10 w-40 h-40 rounded-full bg-white/5" />
 
@@ -220,6 +247,7 @@ export default function LoginPage() {
         </div>
 
         <div className="w-full max-w-sm">
+          <PhotoBanner src={imageSources.community} alt="Four colleagues collaborating around a laptop in a modern office" caption="Four colleagues collaborating around a laptop" className="mb-5 lg:hidden" />
           {/* Lang toggle */}
           <div className="flex justify-end mb-6">
             <button
@@ -291,19 +319,13 @@ export default function LoginPage() {
                   <div className="flex-1 h-px bg-border" />
                 </div>
 
-                {/* Google Login */}
                 <button
-                  onClick={handleGoogleLogin}
-                  disabled={isLoading}
+                  type="button"
+                  onClick={() => { setAuthError(''); setStep('email'); }}
                   className="w-full py-3 rounded-full border-2 border-border text-foreground font-semibold text-sm hover:border-primary/40 hover:bg-muted transition-all flex items-center justify-center gap-2.5"
                 >
-                  <svg width="18" height="18" viewBox="0 0 24 24">
-                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                  </svg>
-                  {lang === 'hi' ? 'Google से जारी रखें' : 'Continue with Google'}
+                  <Shield size={16} />
+                  {lang === 'hi' ? 'ईमेल और पासवर्ड से जारी रखें' : 'Continue with email and password'}
                 </button>
 
                 <p className="text-[10px] text-muted-foreground text-center mt-4">
@@ -317,6 +339,44 @@ export default function LoginPage() {
                   <Link to="/join" className="text-primary font-semibold hover:underline">
                     {lang === 'hi' ? 'यहां जुड़ें' : 'Join here'}
                   </Link>
+                </p>
+              </motion.div>
+            )}
+
+            {/* ── STEP: Email sign-in / registration ───────────────────── */}
+            {step === 'email' && (
+              <motion.div key="email" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}>
+                <button type="button" onClick={() => { setAuthError(''); setStep('phone'); }} className="mb-4 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+                  <ArrowLeft size={15} /> {lang === 'hi' ? 'वापस' : 'Back'}
+                </button>
+                <h1 className="mb-1 text-2xl font-bold text-foreground">
+                  {emailMode === 'login' ? (lang === 'hi' ? 'ईमेल से साइन इन करें' : 'Sign in with email') : (lang === 'hi' ? 'अपना खाता बनाएं' : 'Create your account')}
+                </h1>
+                <p className="mb-5 text-sm text-muted-foreground">
+                  {lang === 'hi' ? 'ईमेल और पासवर्ड से सुरक्षित रूप से जारी रखें।' : 'Use your email and password to continue securely.'}
+                </p>
+                <form onSubmit={(event) => void handleEmailSubmit(event)} className="space-y-3">
+                  {emailMode === 'register' && <div>
+                    <label htmlFor="auth-name" className="mb-1 block text-xs font-semibold">{lang === 'hi' ? 'पूरा नाम' : 'Full name'}</label>
+                    <input id="auth-name" autoComplete="name" required maxLength={100} value={emailName} onChange={(event) => setEmailName(event.target.value)} className="w-full rounded-xl border-2 border-border bg-muted px-3 py-3 text-sm text-foreground outline-none focus:border-primary" placeholder={lang === 'hi' ? 'आपका नाम' : 'Your name'} />
+                  </div>}
+                  <div>
+                    <label htmlFor="auth-email" className="mb-1 block text-xs font-semibold">{lang === 'hi' ? 'ईमेल' : 'Email'}</label>
+                    <input id="auth-email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} className="w-full rounded-xl border-2 border-border bg-muted px-3 py-3 text-sm text-foreground outline-none focus:border-primary" placeholder="you@example.com" />
+                  </div>
+                  <div>
+                    <label htmlFor="auth-password" className="mb-1 block text-xs font-semibold">{lang === 'hi' ? 'पासवर्ड' : 'Password'}</label>
+                    <input id="auth-password" type="password" autoComplete={emailMode === 'login' ? 'current-password' : 'new-password'} required minLength={8} maxLength={200} value={emailPassword} onChange={(event) => setEmailPassword(event.target.value)} className="w-full rounded-xl border-2 border-border bg-muted px-3 py-3 text-sm text-foreground outline-none focus:border-primary" placeholder={lang === 'hi' ? 'कम से कम 8 अक्षर' : 'At least 8 characters'} />
+                  </div>
+                  <button type="submit" disabled={isLoading} className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3.5 text-sm font-bold text-white shadow-lg shadow-primary/25 transition-all hover:bg-primary/90 disabled:opacity-50">
+                    {isLoading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" /> : <>{emailMode === 'login' ? (lang === 'hi' ? 'साइन इन करें' : 'Sign in') : (lang === 'hi' ? 'खाता बनाएं' : 'Create account')} <ArrowRight size={15} /></>}
+                  </button>
+                </form>
+                <p className="mt-4 text-center text-sm text-muted-foreground">
+                  {emailMode === 'login' ? (lang === 'hi' ? 'नया उपयोगकर्ता?' : 'New to SevaSetu?') : (lang === 'hi' ? 'पहले से खाता है?' : 'Already have an account?')} {' '}
+                  <button type="button" onClick={() => { setAuthError(''); setEmailMode(emailMode === 'login' ? 'register' : 'login'); }} className="font-semibold text-primary hover:underline">
+                    {emailMode === 'login' ? (lang === 'hi' ? 'खाता बनाएं' : 'Create an account') : (lang === 'hi' ? 'साइन इन करें' : 'Sign in')}
+                  </button>
                 </p>
               </motion.div>
             )}

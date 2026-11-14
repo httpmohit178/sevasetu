@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { createServer } from "node:http";
-import { randomInt, randomUUID, createHmac, timingSafeEqual } from "node:crypto";
+import { randomInt, randomUUID, randomBytes, scryptSync, createHmac, timingSafeEqual } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import pg from "pg";
@@ -71,6 +71,28 @@ const normalizePhone = (value) => {
 function tokenFor(userId) {
   const value = `${userId}.${randomUUID()}`;
   return `${value}.${createHmac("sha256", SESSION_SECRET).update(value).digest("hex")}`;
+}
+function passwordDigest(password, salt = randomBytes(16).toString("hex")) {
+  return `${salt}:${scryptSync(password, salt, 64).toString("hex")}`;
+}
+function passwordMatches(password, digest) {
+  if (typeof password !== "string" || password.length < 8 || password.length > 200) return false;
+  if (typeof digest !== "string" || !digest.includes(":")) return false;
+  const [salt, expectedHex] = digest.split(":");
+  const actual = scryptSync(password, salt, 64);
+  const expected = Buffer.from(expectedHex, "hex");
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
+function publicUser(user) {
+  const { passwordHash, ...safe } = user;
+  return safe;
+}
+async function createSession(user) {
+  const token = tokenFor(user.id);
+  store.sessions = store.sessions.filter((item) => item.userId !== user.id);
+  store.sessions.push({ id: token, userId: user.id, expiresAt: Date.now() + 30 * 24 * 60 * 60_000 });
+  await persist();
+  return token;
 }
 function currentUser(req) {
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, "");
@@ -185,10 +207,35 @@ const server = createServer(async (req, res) => {
       else { if (data.name) user.name = String(data.name).trim(); if (data.city) user.city = String(data.city).trim(); }
       const token = tokenFor(user.id); store.sessions = store.sessions.filter((item) => item.userId !== user.id);
       store.sessions.push({ id: token, userId: user.id, expiresAt: Date.now() + 30 * 24 * 60 * 60_000 }); await persist();
-      return json(res, 200, { token, user });
+      return json(res, 200, { token, user: publicUser(user) });
     }
-    if (req.method === "GET" && path === "/api/auth/me") { const user = requireUser(req, res); return user ? json(res, 200, { user }) : undefined; }
-    if (req.method === "PATCH" && path === "/api/auth/profile") { const user = requireUser(req, res); if (!user) return; const data = await body(req); if (data.name !== undefined) user.name = String(data.name).trim().slice(0, 100); if (data.city !== undefined) user.city = String(data.city).trim().slice(0, 100); if (!user.name) return json(res, 400, { error: "Name is required" }); await persist(); return json(res, 200, { user }); }
+    if (req.method === "POST" && path === "/api/auth/register") {
+      const data = await body(req);
+      const email = String(data.email || "").trim().toLowerCase();
+      const name = String(data.name || "").trim().slice(0, 100);
+      const password = String(data.password || "");
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json(res, 400, { error: "Enter a valid email address" });
+      if (password.length < 8 || password.length > 200) return json(res, 400, { error: "Password must be at least 8 characters" });
+      if (!name) return json(res, 400, { error: "Enter your name" });
+      if (store.users.some((item) => item.email === email)) return json(res, 409, { error: "An account with this email already exists. Sign in instead." });
+      const phone = data.phone ? normalizePhone(data.phone) : "";
+      if (phone && phone.replace(/\D/g, "").length < 10) return json(res, 400, { error: "Enter a valid phone number" });
+      const user = { id: randomUUID(), name, email, phone, city: String(data.city || "").trim().slice(0, 100), role: "customer", passwordHash: passwordDigest(password), createdAt: new Date().toISOString() };
+      store.users.push(user);
+      const token = await createSession(user);
+      return json(res, 201, { token, user: publicUser(user) });
+    }
+    if (req.method === "POST" && path === "/api/auth/login") {
+      const data = await body(req);
+      const email = String(data.email || "").trim().toLowerCase();
+      const password = String(data.password || "");
+      const user = store.users.find((item) => item.email === email);
+      if (!user?.passwordHash || !passwordMatches(password, user.passwordHash)) return json(res, 401, { error: "Email or password is incorrect" });
+      const token = await createSession(user);
+      return json(res, 200, { token, user: publicUser(user) });
+    }
+    if (req.method === "GET" && path === "/api/auth/me") { const user = requireUser(req, res); return user ? json(res, 200, { user: publicUser(user) }) : undefined; }
+    if (req.method === "PATCH" && path === "/api/auth/profile") { const user = requireUser(req, res); if (!user) return; const data = await body(req); if (data.name !== undefined) user.name = String(data.name).trim().slice(0, 100); if (data.city !== undefined) user.city = String(data.city).trim().slice(0, 100); if (!user.name) return json(res, 400, { error: "Name is required" }); await persist(); return json(res, 200, { user: publicUser(user) }); }
     if (req.method === "POST" && path === "/api/auth/logout") { const user = requireUser(req, res); if (!user) return; const token = req.headers.authorization?.replace(/^Bearer\s+/i, ""); store.sessions = store.sessions.filter((item) => item.id !== token); await persist(); return json(res, 200, { ok: true }); }
     if (req.method === "GET" && path === "/api/rewards") { const user = requireUser(req, res); if (!user) return; return json(res, 200, { points: user.points || 0, history: user.rewardHistory || [], lastCheckIn: user.lastCheckIn || null }); }
     if (req.method === "POST" && path === "/api/rewards/check-in") { const user = requireUser(req, res); if (!user) return; const today = new Date().toISOString().slice(0, 10); if (user.lastCheckIn === today) return json(res, 409, { error: "You already checked in today" }); user.lastCheckIn = today; user.points = (user.points || 0) + 5; user.rewardHistory ||= []; user.rewardHistory.unshift({ id: randomUUID(), points: 5, label: "Daily check-in", labelHi: "दैनिक चेक-इन", createdAt: new Date().toISOString() }); await persist(); return json(res, 200, { points: user.points, lastCheckIn: today }); }
@@ -199,7 +246,10 @@ const server = createServer(async (req, res) => {
       const data = await body(req); const skills = Array.isArray(data.skills) ? data.skills.map(String).slice(0, 20) : [];
       if (!String(data.name || user.name).trim() || skills.length === 0 || !String(data.city || user.city).trim()) return json(res, 400, { error: "Name, city, and at least one skill are required" });
       let provider = store.providers.find((item) => item.userId === user.id);
-      provider = { ...(provider || { id: randomUUID(), userId: user.id, createdAt: new Date().toISOString() }), name: String(data.name || user.name).trim(), phone: user.phone, city: String(data.city || user.city).trim(), address: String(data.address || "").trim(), experience: Number(data.experience || 0), skills, status: "pending", online: provider?.online || false };
+      const phone = data.phone ? normalizePhone(data.phone) : user.phone;
+      if (!phone || phone.replace(/\D/g, "").length < 10) return json(res, 400, { error: "A valid phone number is required for provider registration" });
+      user.phone = phone;
+      provider = { ...(provider || { id: randomUUID(), userId: user.id, createdAt: new Date().toISOString() }), name: String(data.name || user.name).trim(), phone, city: String(data.city || user.city).trim(), address: String(data.address || "").trim(), experience: Number(data.experience || 0), skills, status: "pending", online: provider?.online || false };
       store.providers = store.providers.filter((item) => item.userId !== user.id); store.providers.push(provider); user.role = "provider"; await persist(); return json(res, 201, { provider });
     }
     if (req.method === "GET" && path === "/api/providers/me") { const user = requireUser(req, res); if (!user) return; return json(res, 200, { provider: store.providers.find((item) => item.userId === user.id) || null }); }

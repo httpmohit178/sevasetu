@@ -212,26 +212,11 @@ export default function HomePage() {
               className="hidden lg:block"
             >
               <div className="relative rounded-3xl overflow-hidden shadow-2xl h-[420px]">
-                <SmartImage src={imageSources.rural} alt="Rural India landscape and farms" className="h-full w-full" loading="eager" />
+                <SmartImage src={imageSources.rural} alt="Rural farm with a grain silo and fields at sunset" className="h-full w-full" loading="eager" />
                 <div className="absolute inset-0 bg-gradient-to-t from-green-900/60 to-transparent" />
-                <div className="absolute bottom-4 left-4 right-4">
-                  <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-3 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                      <Leaf size={18} className="text-green-600" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-gray-800">Ramesh Kumar</p>
-                      <p className="text-[10px] text-gray-500">Farmer • Varanasi, UP</p>
-                    </div>
-                    <div className="ml-auto flex items-center gap-1">
-                      <Star size={10} className="text-yellow-500 fill-yellow-500" />
-                      <span className="text-xs font-bold text-gray-700">4.9</span>
-                    </div>
-                  </div>
-                </div>
                 <div className="absolute top-4 left-4">
                   <span className="bg-green-600 text-white text-[10px] font-bold px-2 py-1 rounded-full">
-                    🌾 Rural Provider
+                    🌾 Rural communities
                   </span>
                 </div>
               </div>
@@ -367,27 +352,11 @@ export default function HomePage() {
               className="hidden lg:block"
             >
               <div className="relative rounded-3xl overflow-hidden shadow-2xl h-[420px]">
-                <SmartImage src={imageSources.urban} alt="Urban service professionals working together" className="h-full w-full" loading="eager" />
+                <SmartImage src={imageSources.urban} alt="Four colleagues collaborating around a laptop in a modern office" className="h-full w-full" loading="eager" />
                 <div className="absolute inset-0 bg-gradient-to-t from-orange-900/60 to-transparent" />
-                <div className="absolute bottom-4 left-4 right-4">
-                  <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-3 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
-                      <Building2 size={18} className="text-orange-600" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-gray-800">Priya Sharma</p>
-                      <p className="text-[10px] text-gray-500">User • Mumbai, MH</p>
-                    </div>
-                    <div className="ml-auto">
-                      <span className="text-[10px] bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full">
-                        Booked ✓
-                      </span>
-                    </div>
-                  </div>
-                </div>
                 <div className="absolute top-4 right-4">
                   <span className="bg-primary text-white text-[10px] font-bold px-2 py-1 rounded-full">
-                    🏙️ Urban User
+                    🏙️ Urban teamwork
                   </span>
                 </div>
               </div>
@@ -508,7 +477,7 @@ export default function HomePage() {
                 title: lang === 'hi' ? 'बुक करें और ट्रैक करें' : 'Book & Track',
                 desc: lang === 'hi' ? 'तुरंत बुक करें और रियल-टाइम में अपनी सेवा ट्रैक करें' : 'Instantly book and track your service in real-time',
                 color: 'bg-blue-100 text-blue-600',
-                image: imageSources.artisan,
+                image: imageSources.streets,
               },
             ].map((step, i) => {
               const Icon = step.icon;
@@ -522,7 +491,7 @@ export default function HomePage() {
                   className={`relative bg-card rounded-3xl overflow-hidden shadow-sm border border-border ${i === 1 ? 'md:mt-8' : ''}`}
                 >
                   <div className="h-40 overflow-hidden">
-                    <SmartImage src={step.image} alt={step.title} className="h-full w-full" />
+                    <SmartImage src={step.image} alt={i === 0 ? 'Person holding a smartphone to search online' : i === 1 ? 'Plumber repairing plumbing in a bathroom' : 'City skyline and buildings'} className="h-full w-full" />
                     <div className="absolute inset-0 h-40 bg-gradient-to-b from-transparent to-card/20" />
                   </div>
                   <div className="p-6">
@@ -791,17 +760,17 @@ export default function HomePage() {
             >
               <div className="bg-card rounded-3xl overflow-hidden shadow-2xl border border-border">
                 <div className="h-64 relative overflow-hidden">
-                  <SmartImage src={imageSources.artisan} alt="Indian artisan creating traditional handicrafts" className="h-full w-full" />
+                <SmartImage src={imageSources.artisan} alt="Woman making clay pots by hand" className="h-full w-full" />
                   <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent" />
                 </div>
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div>
                       <h3 className="text-xl font-bold text-foreground" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                        Meena Devi
+                        Local Pottery Artisan
                       </h3>
                       <p className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
-                        <MapPin size={12} /> Chandauli Village, UP
+                        <MapPin size={12} /> Traditional craft services
                       </p>
                     </div>
                     <div className="flex items-center gap-1 bg-yellow-50 border border-yellow-200 rounded-full px-2 py-1">
@@ -811,7 +780,7 @@ export default function HomePage() {
                   </div>
 
                   <div className="flex flex-wrap gap-2 mb-4">
-                    {['Handicrafts', 'Pottery', 'Weaving'].map((skill) => (
+                    {['Pottery', 'Clay craft', 'Handmade ceramics'].map((skill) => (
                       <span key={skill} className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded-full font-medium">
                         {skill}
                       </span>

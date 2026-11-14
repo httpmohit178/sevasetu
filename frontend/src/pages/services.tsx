@@ -8,6 +8,20 @@ import { serviceImage } from '../lib/image-sources';
 
 type Lang = 'en' | 'hi';
 type CatalogService = { id: string; name: string; nameHi: string; startingPrice: number; onlineProviders: number; category: string };
+const fallbackCatalog: CatalogService[] = [
+  { id: 'plumbing', name: 'Plumbing', nameHi: 'प्लंबिंग', startingPrice: 299, onlineProviders: 0, category: 'home' },
+  { id: 'electrical', name: 'Electrical', nameHi: 'इलेक्ट्रिकल', startingPrice: 349, onlineProviders: 0, category: 'home' },
+  { id: 'cleaning', name: 'Cleaning', nameHi: 'सफाई', startingPrice: 249, onlineProviders: 0, category: 'home' },
+  { id: 'painting', name: 'Painting', nameHi: 'पेंटिंग', startingPrice: 499, onlineProviders: 0, category: 'home' },
+  { id: 'carpentry', name: 'Carpentry', nameHi: 'बढ़ईगीरी', startingPrice: 399, onlineProviders: 0, category: 'home' },
+  { id: 'cooking', name: 'Cooking', nameHi: 'खाना पकाना', startingPrice: 299, onlineProviders: 0, category: 'food' },
+  { id: 'tutoring', name: 'Tutoring', nameHi: 'ट्यूटरिंग', startingPrice: 399, onlineProviders: 0, category: 'edu' },
+  { id: 'driving', name: 'Driving', nameHi: 'ड्राइविंग', startingPrice: 299, onlineProviders: 0, category: 'transport' },
+  { id: 'beauty', name: 'Beauty & Salon', nameHi: 'ब्यूटी और सैलून', startingPrice: 299, onlineProviders: 0, category: 'beauty' },
+  { id: 'ac', name: 'AC Repair', nameHi: 'AC मरम्मत', startingPrice: 499, onlineProviders: 0, category: 'home' },
+  { id: 'gardening', name: 'Gardening', nameHi: 'बागवानी', startingPrice: 249, onlineProviders: 0, category: 'agri' },
+  { id: 'security', name: 'Security', nameHi: 'सुरक्षा', startingPrice: 499, onlineProviders: 0, category: 'home' },
+];
 const categories = [
   { id: 'all', label: 'All Services', labelHi: 'सभी सेवाएं', icon: Zap },
   { id: 'home', label: 'Home', labelHi: 'घरेलू सेवाएं', icon: Home },
@@ -28,18 +42,27 @@ export default function ServicesPage() {
   const navigate = useNavigate();
   const [lang, setLang] = useState<Lang>('en');
   const [catalog, setCatalog] = useState<CatalogService[]>([]);
-  const [activeCategory, setActiveCategory] = useState('all');
+  const [activeCategory, setActiveCategory] = useState(() => {
+    const requestedCategory = new URLSearchParams(window.location.search).get('category');
+    return categories.some((category) => category.id === requestedCategory) ? requestedCategory! : 'all';
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('popular');
   const [loading, setLoading] = useState(true);
   const [bookingId, setBookingId] = useState('');
   const [busyId, setBusyId] = useState('');
   const [error, setError] = useState('');
+  const [catalogWarning, setCatalogWarning] = useState(false);
   const t = (en: string, hi: string) => lang === 'hi' ? hi : en;
 
   const loadCatalog = async () => {
-    try { const result = await apiRequest<{ services: CatalogService[] }>('/services'); setCatalog(result.services); setError(''); }
-    catch (e) { setError(e instanceof Error ? e.message : t('Could not load services', 'सेवाएं लोड नहीं हो सकीं')); }
+    try {
+      const result = await apiRequest<{ services: CatalogService[] }>('/services');
+      if (!Array.isArray(result.services)) throw new Error('Service catalogue response was invalid');
+      setCatalog(result.services);
+      setCatalogWarning(false);
+    }
+    catch { setCatalog(fallbackCatalog); setCatalogWarning(true); }
     finally { setLoading(false); }
   };
   useEffect(() => { void loadCatalog(); }, []);
@@ -54,7 +77,7 @@ export default function ServicesPage() {
   }, [catalog, activeCategory, searchQuery, sortBy]);
 
   const book = async (service: CatalogService) => {
-    if (!localStorage.getItem('sevasetu-token')) { navigate('/login'); return; }
+    if (!localStorage.getItem('sevasetu-token')) { navigate('/login', { state: { from: '/services' } }); return; }
     setBusyId(service.id); setError(''); setBookingId('');
     try {
       const result = await apiRequest<{ booking: { id: string } }>('/bookings', { method: 'POST', body: JSON.stringify({ serviceId: service.id, paymentMethod: 'cod' }) });
@@ -73,6 +96,7 @@ export default function ServicesPage() {
     </section>
     <main className="container mx-auto px-4 py-8">
       {error && <p role="alert" className="mb-4 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
+      {catalogWarning && <p role="status" className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{t('Showing the service catalogue. Live provider availability is temporarily unavailable.', 'सेवाओं की सूची दिखाई जा रही है। लाइव प्रदाता उपलब्धता अभी उपलब्ध नहीं है।')} <button onClick={() => { setLoading(true); void loadCatalog(); }} className="ml-2 font-bold underline">{t('Retry', 'फिर कोशिश करें')}</button></p>}
       {bookingId && <p role="status" className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-green-300 bg-green-50 p-3 text-sm text-green-900">{t('Booking request created', 'बुकिंग अनुरोध भेज दिया गया')} · #{bookingId}<Link className="font-bold underline" to="/tracker">{t('Track it', 'स्थिति देखें')}</Link></p>}
       <div className="mb-6 flex gap-2 overflow-x-auto pb-2">{categories.map(({ id, label, labelHi, icon: Icon }) => <button key={id} onClick={() => setActiveCategory(id)} className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold ${activeCategory === id ? 'bg-primary text-white' : 'border border-border bg-card text-muted-foreground'}`}><Icon size={13} />{lang === 'hi' ? labelHi : label}</button>)}</div>
       <div className="mb-5 flex items-center justify-between"><p className="text-sm text-muted-foreground">{loading ? t('Loading…', 'लोड हो रहा है…') : `${filtered.length} ${t('services', 'सेवाएं')}`}</p><select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="rounded-lg border border-border bg-card px-3 py-2 text-xs">{sortOptions.map((opt) => <option key={opt.value} value={opt.value}>{lang === 'hi' ? opt.labelHi : opt.label}</option>)}</select></div>

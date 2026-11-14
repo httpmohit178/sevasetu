@@ -10,6 +10,11 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
       ...options.headers,
     },
   });
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.toLowerCase().includes('application/json')) {
+    if (!response.ok) throw new Error(`API request failed (${response.status})`);
+    throw new Error('The API URL returned a web page, not JSON. Set VITE_API_URL to your deployed backend URL.');
+  }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || `Request failed (${response.status})`);
   return data as T;

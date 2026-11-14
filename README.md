@@ -30,6 +30,12 @@ SevaSetu is a college major project that connects people with local services and
 - Run with a local JSON data file, or connect PostgreSQL for persistent hosted storage.
 - Responsive interface with external CDN photos, animated loading states, and image fallbacks.
 
+## Access and sign-in
+
+Home, services, schemes, and the AI assistant are available from the site navigation without signing in. Service browsing also falls back to a built-in catalogue if the API is temporarily offline. Sign-in is needed to create a booking or view personal booking and location details in the tracker. The tracker shows a sign-in prompt to guests instead of failing silently.
+
+The login page supports **phone OTP** and **email/password**. Email accounts can be created in the app; passwords are salted and hashed by the backend. Phone OTP codes are generated for local development and the Render demo. Real SMS delivery requires Twilio Verify. Google sign-in is not shown because it needs a separately configured OAuth client and callback.
+
 ## Project layout
 
 ```text

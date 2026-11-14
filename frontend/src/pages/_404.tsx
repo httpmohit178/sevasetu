@@ -1,4 +1,6 @@
 import { Link } from '../router';
+import { PhotoBanner } from '../components/ui/photo-banner';
+import { imageSources } from '../lib/image-sources';
 
 /**
  * 404 Not Found page component
@@ -12,6 +14,7 @@ export default function NotFoundPage() {
     <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(to bottom right, hsl(var(--primary)), hsl(var(--secondary)))' }}>
     <div className="container mx-auto px-4 max-w-2xl text-center">
       <div className="space-y-8">
+        <PhotoBanner src={imageSources.streets} alt="City skyline and buildings" caption="City skyline and buildings" className="mx-auto max-w-xl" />
         <div className="space-y-4">
           <h1 className="text-6xl font-bold text-white/90">404</h1>
           <h2 className="text-2xl font-semibold text-white/90">

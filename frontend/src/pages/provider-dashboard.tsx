@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { Activity, Briefcase, Clock3, LocateFixed, MapPin, Power, RefreshCw } from 'lucide-react';
 import DashboardLayout, { NavItem } from '@/layouts/DashboardLayout';
 import { apiRequest } from '../lib/api-client';
+import { PhotoBanner } from '../components/ui/photo-banner';
+import { imageSources } from '../lib/image-sources';
 
 type Lang = 'en' | 'hi';
 type Provider = { id: string; name: string; city: string; skills: string[]; online: boolean; status: string };
@@ -95,6 +97,7 @@ export default function ProviderDashboard() {
         <div><p className="text-sm text-white/75">{t('Provider workspace', 'सेवा प्रदाता कार्यक्षेत्र')}</p><h1 className="text-2xl font-bold">{provider?.name || t('Welcome', 'नमस्ते')}</h1><p className="text-sm text-white/75">{provider?.skills.join(', ') || t('No skills listed', 'कोई कौशल नहीं')} {provider?.city ? `• ${provider.city}` : ''}</p></div>
         {provider && <button disabled={busy === 'availability'} onClick={() => void changeOnline()} className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold ${provider.online ? 'bg-green-500' : 'bg-white/20'} disabled:opacity-50`}><Power size={16} />{provider.online ? t('Online', 'ऑनलाइन') : t('Offline', 'ऑफ़लाइन')}</button>}
       </header>
+      <PhotoBanner src={imageSources.provider} alt="Plumber repairing plumbing in a bathroom" caption="Plumber repairing plumbing in a bathroom" />
       {error && <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800">{error}{error === 'Sign in to continue' && <Link className="ml-2 underline" to="/login">{t('Sign in', 'साइन इन')}</Link>}</p>}
       {!provider && !error && <div className="rounded-2xl border border-border bg-card p-8 text-center"><h2 className="font-bold">{t('Set up your provider profile', 'अपनी सेवा प्रदाता प्रोफ़ाइल बनाएं')}</h2><p className="my-2 text-sm text-muted-foreground">{t('Add your skills and service area to receive matching bookings.', 'बुकिंग पाने के लिए अपने कौशल और सेवा क्षेत्र जोड़ें।')}</p><Link to="/join" className="inline-block rounded-full bg-primary px-5 py-2 text-sm font-bold text-white">{t('Join as a provider', 'सेवा प्रदाता बनें')}</Link></div>}
       {provider && <>

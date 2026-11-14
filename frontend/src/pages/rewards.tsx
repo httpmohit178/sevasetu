@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, CalendarCheck, Gift, Lock, Star, TrendingUp, Zap } from 'lucide-react';
 import { apiRequest } from '../lib/api-client';
+import { PhotoBanner } from '../components/ui/photo-banner';
+import { imageSources } from '../lib/image-sources';
 
 type Lang = 'en' | 'hi';
 type RewardEvent = { id: string; points: number; label: string; labelHi: string; createdAt: string };
@@ -42,7 +44,7 @@ export default function RewardsPage() {
 
   return <main className="min-h-screen bg-background">
     <title>{t('Seva rewards – SevaSetu', 'सेवा पुरस्कार – सेवा सेतु')}</title>
-    <section className="bg-gradient-to-br from-violet-600 to-primary py-12 text-white"><div className="container mx-auto flex flex-wrap items-center justify-between gap-4 px-4"><div><p className="mb-1 text-sm font-semibold">{t('Seva rewards', 'सेवा पुरस्कार')}</p><h1 className="text-3xl font-black">{t('Earn points from real activity', 'वास्तविक गतिविधि से पॉइंट कमाएं')}</h1><p className="mt-2 text-white/80">{t('Complete a booking, leave a review, or check in.', 'बुकिंग पूरी करें, समीक्षा दें या दैनिक चेक-इन करें।')}</p></div><button onClick={() => setLang(lang === 'en' ? 'hi' : 'en')} className="rounded-full border border-white/40 px-4 py-2 text-sm">{lang === 'en' ? 'हिंदी' : 'English'}</button></div></section>
+    <section className="bg-gradient-to-br from-violet-600 to-primary py-8 text-white"><div className="container mx-auto grid items-center gap-5 px-4 md:grid-cols-[1fr_0.8fr]"><div><p className="mb-1 text-sm font-semibold">{t('Seva rewards', 'सेवा पुरस्कार')}</p><h1 className="text-3xl font-black">{t('Earn points from real activity', 'वास्तविक गतिविधि से पॉइंट कमाएं')}</h1><p className="mt-2 text-white/80">{t('Complete a booking, leave a review, or check in.', 'बुकिंग पूरी करें, समीक्षा दें या दैनिक चेक-इन करें।')}</p><button onClick={() => setLang(lang === 'en' ? 'hi' : 'en')} className="mt-4 rounded-full border border-white/40 px-4 py-2 text-sm">{lang === 'en' ? 'हिंदी' : 'English'}</button></div><PhotoBanner src={imageSources.artisan} alt="Woman making clay pots by hand" caption="Woman making clay pots by hand" /></div></section>
     <div className="container mx-auto max-w-5xl space-y-6 px-4 py-8">
       {error && <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800">{error}{error === 'Sign in to continue' && <Link className="ml-2 font-bold underline" to="/login">{t('Sign in', 'साइन इन')}</Link>}</p>}
       {notice && <p role="status" className="rounded-xl border border-green-300 bg-green-50 p-3 text-sm text-green-900">{notice}</p>}

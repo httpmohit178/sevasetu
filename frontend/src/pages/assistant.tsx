@@ -9,6 +9,8 @@ import {
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { getAIResponse, getRequestedServiceId, speakText, type AIMessage, type Provider, type Lang } from '@/lib/sevaAI';
 import { apiRequest } from '@/lib/api-client';
+import { PhotoBanner } from '../components/ui/photo-banner';
+import { imageSources } from '../lib/image-sources';
 
 // ─── Typing Indicator ─────────────────────────────────────────────────────────
 function TypingIndicator() {
@@ -505,6 +507,9 @@ export default function AIAssistantPage() {
       </div>
 
       {/* ── Main Layout ───────────────────────────────────────────────────── */}
+      <div className="container mx-auto w-full max-w-6xl px-4 pt-4">
+        <PhotoBanner src={imageSources.community} alt="Four colleagues collaborating around a laptop in a modern office" caption="Four colleagues collaborating around a laptop" />
+      </div>
       <div className="flex-1 container mx-auto px-4 py-6 flex gap-6 max-w-6xl">
 
         {/* ── Sidebar (desktop) ─────────────────────────────────────────── */}

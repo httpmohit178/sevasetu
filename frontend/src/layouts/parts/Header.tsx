@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Globe, ArrowRight, Sun, Moon, Zap } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDarkMode } from '@/hooks/useDarkMode';
 
 interface HeaderProps {
@@ -11,7 +11,18 @@ interface HeaderProps {
 export default function Header({ lang = 'en', onLangToggle }: HeaderProps) {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(localStorage.getItem('sevasetu-token')));
   const { isDark, toggle: toggleDark } = useDarkMode();
+
+  useEffect(() => {
+    const syncAuthentication = () => setIsAuthenticated(Boolean(localStorage.getItem('sevasetu-token')));
+    window.addEventListener('sevasetu-auth-change', syncAuthentication);
+    window.addEventListener('storage', syncAuthentication);
+    return () => {
+      window.removeEventListener('sevasetu-auth-change', syncAuthentication);
+      window.removeEventListener('storage', syncAuthentication);
+    };
+  }, []);
 
   const navItems = [
     { href: '/', label: lang === 'hi' ? 'होम' : 'Home' },
@@ -114,10 +125,10 @@ export default function Header({ lang = 'en', onLangToggle }: HeaderProps) {
             </button>
 
             <Link
-              to="/login"
+              to={isAuthenticated ? '/dashboard' : '/login'}
               className="px-4 py-1.5 rounded-full border border-primary text-primary text-sm font-semibold hover:bg-primary hover:text-white transition-all duration-200"
             >
-              {lang === 'hi' ? 'लॉगिन' : 'Login'}
+              {isAuthenticated ? (lang === 'hi' ? 'डैशबोर्ड' : 'Dashboard') : (lang === 'hi' ? 'लॉगिन' : 'Login')}
             </Link>
 
             <Link
@@ -185,11 +196,11 @@ export default function Header({ lang = 'en', onLangToggle }: HeaderProps) {
                 {lang === 'en' ? 'हिंदी में बदलें' : 'Switch to English'}
               </button>
               <Link
-                to="/login"
+                to={isAuthenticated ? '/dashboard' : '/login'}
                 className="px-4 py-2 rounded-full border border-primary text-primary text-sm font-semibold text-center hover:bg-primary hover:text-white transition-all"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                {lang === 'hi' ? 'लॉगिन' : 'Login'}
+                {isAuthenticated ? (lang === 'hi' ? 'डैशबोर्ड' : 'Dashboard') : (lang === 'hi' ? 'लॉगिन' : 'Login')}
               </Link>
               <Link
                 to="/join"

@@ -7,6 +7,8 @@ import {
   MapPin, Camera, Upload, ChevronDown
 } from 'lucide-react';
 import { apiRequest } from '../lib/api-client';
+import { PhotoBanner } from '../components/ui/photo-banner';
+import { imageSources } from '../lib/image-sources';
 
 type Lang = 'en' | 'hi';
 type Step = 'intro' | 'personal' | 'skills' | 'docs' | 'success';
@@ -236,6 +238,7 @@ export default function JoinPage() {
         </div>
 
         <div className="w-full max-w-md">
+          <PhotoBanner src={imageSources.provider} alt="Plumber repairing plumbing in a bathroom" caption="Plumber repairing plumbing in a bathroom" className="mb-5" />
           {/* Lang toggle */}
           <div className="flex justify-end mb-4">
             <button
