@@ -129,6 +129,8 @@ Create a PostgreSQL project in [Neon](https://console.neon.tech/), copy its pool
 3. Deploy. Copy your Vercel domain and set Render's `ALLOWED_ORIGINS` to that exact origin (for example, `https://your-project.vercel.app`), then redeploy the backend.
 4. Redeploy Vercel after changing `VITE_API_URL`, since Vite embeds it during the build.
 
+If login or account creation shows **“Failed to fetch”**, check the API connection: `VITE_API_URL` must be the Render service URL plus `/api` (for example, `https://sevasetu-api.onrender.com/api`), and Render `ALLOWED_ORIGINS` must exactly match the Vercel site origin (for example, `https://your-project.vercel.app`, with no path). Verify the API at `https://YOUR-RENDER-SERVICE.onrender.com/api/health`, then redeploy Render and Vercel after changing the variables. Preview deployments need their own allowed origin if you test from a preview URL.
+
 ## Checks
 
 ```powershell
