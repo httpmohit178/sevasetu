@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useInView } from 'motion/react';
+import { SmartImage } from '../components/ui/smart-image';
+import { imageSources } from '../lib/image-sources';
 import {
   Mic, Search, ArrowRight, Star, MapPin, Shield, Zap, ChevronRight,
   Home, Leaf, Palette, Heart, BookOpen, Truck, AlertCircle, Building2,
@@ -210,11 +212,7 @@ export default function HomePage() {
               className="hidden lg:block"
             >
               <div className="relative rounded-3xl overflow-hidden shadow-2xl h-[420px]">
-                <img
-                  src="/airo-assets/images/pages/home/hero-rural"
-                  alt="Rural India farmer with smartphone"
-                  className="w-full h-full object-cover"
-                />
+                <SmartImage src={imageSources.rural} alt="Rural India landscape and farms" className="h-full w-full" loading="eager" />
                 <div className="absolute inset-0 bg-gradient-to-t from-green-900/60 to-transparent" />
                 <div className="absolute bottom-4 left-4 right-4">
                   <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-3 flex items-center gap-3">
@@ -369,11 +367,7 @@ export default function HomePage() {
               className="hidden lg:block"
             >
               <div className="relative rounded-3xl overflow-hidden shadow-2xl h-[420px]">
-                <img
-                  src="/airo-assets/images/pages/home/hero-urban"
-                  alt="Urban professional using app"
-                  className="w-full h-full object-cover"
-                />
+                <SmartImage src={imageSources.urban} alt="Urban service professionals working together" className="h-full w-full" loading="eager" />
                 <div className="absolute inset-0 bg-gradient-to-t from-orange-900/60 to-transparent" />
                 <div className="absolute bottom-4 left-4 right-4">
                   <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-3 flex items-center gap-3">
@@ -498,7 +492,7 @@ export default function HomePage() {
                 title: lang === 'hi' ? 'खोजें या बोलें' : 'Search or Speak',
                 desc: lang === 'hi' ? 'हिंदी या अंग्रेजी में आवाज़ से या टाइप करके सेवा खोजें' : 'Find services by typing or using voice in Hindi or English',
                 color: 'bg-orange-100 text-orange-600',
-                image: '/airo-assets/images/pages/home/service-worker',
+                image: imageSources.search,
               },
               {
                 step: '02',
@@ -506,7 +500,7 @@ export default function HomePage() {
                 title: lang === 'hi' ? 'प्रदाता चुनें' : 'Choose Provider',
                 desc: lang === 'hi' ? 'रेटिंग, समीक्षा और स्थान के आधार पर सर्वश्रेष्ठ प्रदाता चुनें' : 'Pick the best provider based on ratings, reviews & location',
                 color: 'bg-green-100 text-green-600',
-                image: '/airo-assets/images/pages/home/provider-spotlight',
+                image: imageSources.provider,
               },
               {
                 step: '03',
@@ -514,7 +508,7 @@ export default function HomePage() {
                 title: lang === 'hi' ? 'बुक करें और ट्रैक करें' : 'Book & Track',
                 desc: lang === 'hi' ? 'तुरंत बुक करें और रियल-टाइम में अपनी सेवा ट्रैक करें' : 'Instantly book and track your service in real-time',
                 color: 'bg-blue-100 text-blue-600',
-                image: '/airo-assets/images/pages/home/artisan',
+                image: imageSources.artisan,
               },
             ].map((step, i) => {
               const Icon = step.icon;
@@ -528,7 +522,7 @@ export default function HomePage() {
                   className={`relative bg-card rounded-3xl overflow-hidden shadow-sm border border-border ${i === 1 ? 'md:mt-8' : ''}`}
                 >
                   <div className="h-40 overflow-hidden">
-                    <img src={step.image} alt={step.title} className="w-full h-full object-cover" />
+                    <SmartImage src={step.image} alt={step.title} className="h-full w-full" />
                     <div className="absolute inset-0 h-40 bg-gradient-to-b from-transparent to-card/20" />
                   </div>
                   <div className="p-6">
@@ -797,11 +791,7 @@ export default function HomePage() {
             >
               <div className="bg-card rounded-3xl overflow-hidden shadow-2xl border border-border">
                 <div className="h-64 relative overflow-hidden">
-                  <img
-                    src="/airo-assets/images/pages/home/provider-spotlight"
-                    alt="Provider spotlight"
-                    className="w-full h-full object-cover"
-                  />
+                  <SmartImage src={imageSources.artisan} alt="Indian artisan creating traditional handicrafts" className="h-full w-full" />
                   <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent" />
                 </div>
                 <div className="p-6">

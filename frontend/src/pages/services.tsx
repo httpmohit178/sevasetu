@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, Shield, Home, Leaf, Palette, BookOpen, Truck, Wrench, Zap, Scissors, Utensils, ArrowRight, Wifi } from 'lucide-react';
 import { apiRequest } from '../lib/api-client';
+import { SmartImage } from '../components/ui/smart-image';
+import { serviceImage } from '../lib/image-sources';
 
 type Lang = 'en' | 'hi';
 type CatalogService = { id: string; name: string; nameHi: string; startingPrice: number; onlineProviders: number; category: string };
@@ -75,11 +77,14 @@ export default function ServicesPage() {
       <div className="mb-6 flex gap-2 overflow-x-auto pb-2">{categories.map(({ id, label, labelHi, icon: Icon }) => <button key={id} onClick={() => setActiveCategory(id)} className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold ${activeCategory === id ? 'bg-primary text-white' : 'border border-border bg-card text-muted-foreground'}`}><Icon size={13} />{lang === 'hi' ? labelHi : label}</button>)}</div>
       <div className="mb-5 flex items-center justify-between"><p className="text-sm text-muted-foreground">{loading ? t('Loading…', 'लोड हो रहा है…') : `${filtered.length} ${t('services', 'सेवाएं')}`}</p><select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="rounded-lg border border-border bg-card px-3 py-2 text-xs">{sortOptions.map((opt) => <option key={opt.value} value={opt.value}>{lang === 'hi' ? opt.labelHi : opt.label}</option>)}</select></div>
       {loading ? <p className="py-12 text-center text-sm text-muted-foreground">{t('Loading service catalogue…', 'सेवाओं की सूची लोड हो रही है…')}</p> : filtered.length === 0 ? <div className="py-16 text-center"><Search className="mx-auto mb-3 text-muted-foreground" /><h2 className="font-bold">{t('No matching services', 'कोई मिलती-जुलती सेवा नहीं')}</h2><p className="mt-1 text-sm text-muted-foreground">{t('Try a different search or category.', 'दूसरा शब्द या श्रेणी आज़माएं।')}</p></div> : <AnimatePresence mode="wait"><motion.div key={`${activeCategory}-${searchQuery}-${sortBy}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {filtered.map((service, index) => { const Icon = icons[catalog.findIndex((item) => item.id === service.id)] || Wrench; return <motion.article key={service.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.025 }} className="rounded-2xl border border-border bg-card p-5">
+        {filtered.map((service, index) => { const Icon = icons[catalog.findIndex((item) => item.id === service.id)] || Wrench; return <motion.article key={service.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.025 }} className="overflow-hidden rounded-2xl border border-border bg-card">
+          <SmartImage src={serviceImage(service.category, service.name)} alt={`${service.name} service`} className="h-36 w-full" />
+          <div className="p-5">
           <div className="mb-3 flex items-center justify-between"><div className="grid h-11 w-11 place-items-center rounded-xl bg-primary/10 text-primary"><Icon size={20} /></div>{service.onlineProviders > 0 && <span className="rounded-full bg-green-100 px-2 py-1 text-[10px] font-semibold text-green-800">{t('Online', 'ऑनलाइन')}</span>}</div>
           <h2 className="font-bold">{lang === 'hi' ? service.nameHi : service.name}</h2>
           <div className="my-3 flex items-center gap-2 text-xs text-muted-foreground"><Shield size={12} />{service.onlineProviders} {t('online providers', 'ऑनलाइन प्रदाता')}</div>
           <div className="flex items-center justify-between border-t border-border pt-3"><div><span className="text-lg font-black text-primary">₹{service.startingPrice}</span><span className="ml-1 text-[10px] text-muted-foreground">{t('starting', 'से शुरू')}</span></div><button disabled={busyId === service.id} onClick={() => void book(service)} className="flex items-center gap-1 rounded-full bg-primary px-3 py-2 text-[11px] font-bold text-white disabled:opacity-50">{busyId === service.id ? t('Sending…', 'भेज रहे हैं…') : t('Book', 'बुक करें')} <ArrowRight size={11} /></button></div>
+          </div>
         </motion.article>; })}
       </motion.div></AnimatePresence>}
       <p className="mt-6 text-xs text-muted-foreground">{t('Ratings, reviews and provider counts are shown only when backed by actual customer activity.', 'रेटिंग, समीक्षाएं और प्रदाताओं की संख्या वास्तविक ग्राहक गतिविधि से अपडेट होती हैं।')}</p>

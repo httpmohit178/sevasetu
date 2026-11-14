@@ -1,12 +1,50 @@
-# SevaSetu — split frontend and backend
+<div align="center">
+  <img src="assets/github-banner.gif" alt="Animated SevaSetu banner: Connecting Bharat, गांव से शहर तक" width="100%" />
 
-The ZIP root contains independent `frontend` and `backend` folders. Use Node.js 22 or newer.
+  <h1>SevaSetu — Connecting Bharat</h1>
+  <p><strong>AI-powered local services for rural and urban India</strong><br/>गांव से शहर तक · Hindi + English · Frontend + Backend</p>
 
-## Run locally on Windows
+  <p>
+    <img alt="React" src="https://img.shields.io/badge/React-19-149eca?logo=react&logoColor=white" />
+    <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript&logoColor=white" />
+    <img alt="Node.js" src="https://img.shields.io/badge/Node.js-22+-339933?logo=nodedotjs&logoColor=white" />
+    <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-supported-4169e1?logo=postgresql&logoColor=white" />
+    <img alt="Hindi and English" src="https://img.shields.io/badge/language-Hindi%20%7C%20English-orange" />
+  </p>
+</div>
 
-Open two PowerShell windows in the extracted `SevaSetu-Project` folder.
+---
 
-**PowerShell window 1 — backend:**
+## About
+
+SevaSetu is a college major project that connects people with local services and providers. The web app includes service discovery, booking, provider tools, booking tracking, a bilingual AI assistant, and government scheme information. The frontend and backend live in separate folders so they can be developed and deployed independently.
+
+## Features
+
+- Browse and search the service catalogue; review provider availability and starting prices.
+- Request a service booking and follow its status in the tracker.
+- Use the provider dashboard and location sharing features where browser permissions and HTTPS are available.
+- Ask the AI assistant questions in Hindi or English. Configure Groq for AI responses; built-in responses remain available without an AI key.
+- Explore scheme information and eligibility guidance.
+- Choose Hindi or English in supported screens.
+- Run with a local JSON data file, or connect PostgreSQL for persistent hosted storage.
+- Responsive interface with external CDN photos, animated loading states, and image fallbacks.
+
+## Project layout
+
+```text
+SevaSetu/
+├── frontend/       # React, TypeScript, Vite, Tailwind; deploy to Vercel
+├── backend/        # Node.js API; deploy to Render
+├── assets/         # README artwork
+└── README.md
+```
+
+## Run locally (Windows PowerShell)
+
+Install [Node.js 22 or newer](https://nodejs.org/). Extract the repository, then open two PowerShell terminals in the project root.
+
+**Terminal 1 — API:**
 
 ```powershell
 cd .\backend
@@ -15,9 +53,9 @@ Copy-Item .env.example .env
 npm run dev
 ```
 
-The API runs at `http://localhost:3000` and restarts automatically when backend files change. You can also use `npm start` to run it without watch mode. In development, OTP API responses include a `developmentCode`; use it to sign in. For persistent local data, the backend creates `backend/data/sevasetu.json`.
+The API starts at `http://localhost:3000`. For local persistent data it creates `backend/data/sevasetu.json`. OTP responses include a development code for local sign-in.
 
-**PowerShell window 2 — frontend:**
+**Terminal 2 — web app:**
 
 ```powershell
 cd .\frontend
@@ -26,45 +64,88 @@ Copy-Item .env.example .env
 npm run dev
 ```
 
-Open `http://localhost:5173`. Vite proxies `/api` requests to the backend at port 3000.
+Open <http://localhost:5173>. Vite forwards `/api` calls to the local API.
 
-## Groq AI
+## Environment variables
 
-Create a key at [Groq API Keys](https://console.groq.com/keys). Put it in `backend/.env` as `GROQ_API_KEY=gsk_...`, restart the backend, and ask the assistant a question. The default `GROQ_MODEL` is `openai/gpt-oss-120b`. The backend asks the model for English and Hindi text in a JSON response. Never put the Groq key in the frontend or in a `VITE_*` variable. If no AI key is configured, built-in bilingual assistant answers remain available.
+Keep secrets in `backend/.env` or the hosting provider's secret settings. Never commit `.env` files or put private keys in `VITE_*` variables.
 
-## PostgreSQL
+| Variable | Where | Purpose |
+|---|---|---|
+| `SESSION_SECRET` | Backend | Long random secret used to sign sessions. |
+| `DATABASE_URL` | Backend | Optional PostgreSQL URL. If omitted, local JSON storage is used. |
+| `GROQ_API_KEY` | Backend | Optional Groq key for AI answers. Obtain it from [Groq Console](https://console.groq.com/keys). |
+| `GROQ_MODEL` | Backend | Groq model name; default is `openai/gpt-oss-120b`. |
+| `ALLOWED_ORIGINS` | Backend | Comma-separated list of frontend origins allowed to call the API. |
+| `DEMO_OTP` | Backend | Enables visible one-time codes for a public demo. Do not use for real accounts. |
+| `VITE_API_URL` | Frontend build | Public API base URL, such as `https://your-api.onrender.com/api`. |
 
-Locally, the backend uses `backend/data/sevasetu.json` unless `DATABASE_URL` is set. Set a PostgreSQL connection URL in `backend/.env` to use PostgreSQL. The API creates its `sevasetu_state` JSONB table automatically. If the database is empty and the JSON file exists, it imports that file on startup. `/api/health` reports the active persistence mode and checks the database connection.
+For production SMS verification, configure Twilio Verify using `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_VERIFY_SERVICE_SID`. The demo OTP option is for demonstrations only.
 
-## Deploy backend + database to Render
+## Database options
 
-For a no-cost college demo, the included Blueprint uses Render's free web service and an external Neon free Postgres database. Render's own free Postgres is not used because Render says those databases expire after 30 days. Check current quotas before deploying: Render free services sleep after 15 idle minutes, Neon Free has monthly compute/storage/network caps, and Vercel Hobby is for noncommercial projects. Free plans and their limits can change.
+For local development, no database setup is required; the backend stores app data in a JSON file. For PostgreSQL, create a database and set `DATABASE_URL` in `backend/.env`. The backend initializes its app-state table on startup. The included Render Blueprint supports connecting an external Neon PostgreSQL database.
 
-1. Create a free Neon project at [Neon](https://console.neon.tech/). Choose a region close to Render Singapore, open the **Connect** panel, choose the pooled connection option, and copy the connection string. It should begin with `postgresql://` and include `sslmode=require`; keep it secret.
-2. Push the extracted project to a GitHub repository. Do not commit `.env` files or API keys.
-3. In Render select **New → Blueprint**, connect the repository, and set the Blueprint file path to `backend/render.yaml`.
-4. During Blueprint setup, enter the prompted values:
-   - `DATABASE_URL`: the Neon pooled connection string from step 1.
-   - `ALLOWED_ORIGINS`: initially `http://localhost:5173`; replace it with your Vercel URL after the frontend deploys.
-   - `GROQ_API_KEY`: create a key at [Groq API Keys](https://console.groq.com/keys). Keep it only in Render.
-   - Render generates `SESSION_SECRET`. The Blueprint sets `NODE_ENV=production`, `GROQ_MODEL`, and `DEMO_OTP=true` automatically. The backend upgrades Neon’s `sslmode=require` URL parameter to `sslmode=verify-full` for certificate verification.
-5. Deploy the Blueprint. The API creates its PostgreSQL table automatically. Open `https://<render-service>.onrender.com/api/health`; expect `status: "ok"`, `database: "postgresql"`, and `ai: "groq"`.
+## Free-tier deployment overview
 
-**Demo sign-in:** `DEMO_OTP=true` shows the one-time code in the login page instead of sending SMS. Anyone requesting a code can see it. Use fictional/test data only. Turn `DEMO_OTP` off and configure Twilio Verify before accepting real accounts; SMS is not part of the no-cost setup.
+Free plans and quotas can change. Review current limits before deploying. Render free web services sleep after inactivity, and the first request after sleep can be slow. Neon and Groq have usage quotas. Vercel Hobby is intended for personal, noncommercial projects.
 
-## Deploy frontend to Vercel
+### 1. Push to GitHub
 
-1. Use Vercel's free Hobby plan for a personal, noncommercial college demo. Import the same GitHub repository and set **Root Directory** to `frontend`.
-2. Set `VITE_API_URL` in Vercel to `https://<render-service>.onrender.com/api` for Production (and Preview if desired).
-3. Deploy the frontend, copy its Vercel URL, then add that exact origin to Render's `ALLOWED_ORIGINS` and redeploy the backend if needed.
-4. Redeploy Vercel after changing `VITE_API_URL`, because Vite embeds it during the build.
+Create an empty GitHub repository, then run these commands from the extracted SevaSetu project root:
 
-## Important behavior
+```powershell
+git init
+git add .
+git commit -m "Initial SevaSetu project"
+git branch -M main
+git remote add origin https://github.com/YOUR-USERNAME/YOUR-REPOSITORY.git
+git push -u origin main
+```
 
-- GPS sharing requires HTTPS (localhost works for development), browser location permission, and the provider dashboard open while sharing.
-- The free Render API sleeps after 15 minutes idle; its first request after sleep can take about a minute. Neon Free and Groq Free enforce quotas; database/AI use may pause when limits are reached. Online UPI/card processing, provider payouts, identity/KYC checks, and official government scheme submissions are not integrated.
-- PostgreSQL stores the current app state as one JSONB document. Keep one API instance for this version; migrate to separate relational tables and transaction/locking logic before scaling to multiple instances.
+Replace the remote URL with your repository URL. Confirm `.env` files and API keys are not staged.
+
+### 2. Create the database
+
+Create a PostgreSQL project in [Neon](https://console.neon.tech/), copy its pooled connection string, and keep it private. The connection string is entered as the Render `DATABASE_URL` value.
+
+### 3. Deploy the backend on Render
+
+1. In Render choose **New → Blueprint**, connect the GitHub repository, and use Blueprint path `backend/render.yaml`.
+2. Enter `DATABASE_URL` from Neon, set `ALLOWED_ORIGINS` temporarily to `http://localhost:5173`, and enter `GROQ_API_KEY` if you want Groq AI.
+3. Let Render generate `SESSION_SECRET`. The Blueprint configures the service and demo OTP setting.
+4. Deploy, then check `https://YOUR-RENDER-SERVICE.onrender.com/api/health`.
+
+### 4. Deploy the frontend on Vercel
+
+1. Import the same repository in Vercel and set **Root Directory** to `frontend`.
+2. Add `VITE_API_URL` with `https://YOUR-RENDER-SERVICE.onrender.com/api`.
+3. Deploy. Copy your Vercel domain and set Render's `ALLOWED_ORIGINS` to that exact origin (for example, `https://your-project.vercel.app`), then redeploy the backend.
+4. Redeploy Vercel after changing `VITE_API_URL`, since Vite embeds it during the build.
 
 ## Checks
 
-Run `npm run type-check` and `npm run build` inside `frontend`; run `npm run check` inside `backend`.
+```powershell
+# frontend
+cd .\frontend
+npm run type-check
+npm run build
+
+# backend (from project root in another terminal)
+cd .\backend
+npm run check
+```
+
+## Notes
+
+- Location access requires HTTPS on deployed sites and permission from the browser. The provider must keep location sharing active for updates to be sent.
+- Booking status tracking works through the API; location updates depend on the provider sharing location.
+- External photos need an internet connection; the UI shows a fallback if a remote image is unavailable.
+- The current PostgreSQL persistence stores app state in one JSONB document. Keep one backend instance for this version; use relational tables and transaction handling before scaling to multiple instances.
+- Payment processing, provider payouts, identity verification, and official government scheme submissions are not integrated.
+
+---
+
+<div align="center">
+  <sub>Built as a student project to make local services more accessible across Bharat. · बनाया गया भारत में स्थानीय सेवाओं को सुलभ बनाने के लिए।</sub>
+</div>

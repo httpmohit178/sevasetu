@@ -142,3 +142,25 @@
 html {
   scroll-behavior: smooth;
 }
+
+/* Image loading and subtle motion across the app. */
+.smart-image-photo {
+  opacity: 0;
+  transform: scale(1.04);
+  transition: opacity 450ms ease, transform 900ms cubic-bezier(.2,.7,.2,1);
+}
+.smart-image-loaded {
+  opacity: 1;
+  transform: scale(1);
+  animation: smart-image-drift 18s ease-in-out infinite alternate;
+}
+.smart-image-shimmer {
+  background: linear-gradient(110deg, transparent 20%, rgb(255 255 255 / 65%) 45%, transparent 70%);
+  background-size: 220% 100%;
+  animation: smart-image-shimmer 1.5s ease-in-out infinite;
+}
+@keyframes smart-image-shimmer { to { background-position: -220% 0; } }
+@keyframes smart-image-drift { from { transform: scale(1); } to { transform: scale(1.055); } }
+@media (prefers-reduced-motion: reduce) {
+  .smart-image-photo, .smart-image-shimmer { animation: none; transition: none; }
+}
