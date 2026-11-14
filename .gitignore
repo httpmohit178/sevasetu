@@ -1,0 +1,21 @@
+# Never commit credentials
+.env
+.env.*
+!.env.example
+
+# Dependencies and generated builds
+**/node_modules/
+**/dist/
+**/coverage/
+*.log
+
+# Local application data
+backend/data/
+*.sqlite
+*.sqlite3
+
+# Git/editor/OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
