@@ -19,5 +19,3 @@ backend/data/
 Thumbs.db
 .vscode/
 .idea/
-.neon
-node_modules/

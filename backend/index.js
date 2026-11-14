@@ -12,7 +12,12 @@ const ORIGINS = (process.env.ALLOWED_ORIGINS || "http://localhost:5173,http://lo
 const TWILIO = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_VERIFY_SERVICE_SID;
 const DEMO_OTP = process.env.DEMO_OTP === "true";
 const { Pool } = pg;
-const database = process.env.DATABASE_URL ? new Pool({ connectionString: process.env.DATABASE_URL, ...(process.env.PGSSL === "true" ? { ssl: { rejectUnauthorized: false } } : {}) }) : null;
+function secureDatabaseUrl(connectionString) {
+  const url = new URL(connectionString);
+  if (url.searchParams.get("sslmode")?.toLowerCase() === "require") url.searchParams.set("sslmode", "verify-full");
+  return url.toString();
+}
+const database = process.env.DATABASE_URL ? new Pool({ connectionString: secureDatabaseUrl(process.env.DATABASE_URL) }) : null;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const SESSION_SECRET = process.env.SESSION_SECRET || (process.env.NODE_ENV === "production" ? "" : "local-development-secret");
 const seed = { users: [], providers: [], bookings: [], otp: [], sessions: [], reviews: [], schemeApplications: [] };

@@ -47,7 +47,7 @@ For a no-cost college demo, the included Blueprint uses Render's free web servic
    - `DATABASE_URL`: the Neon pooled connection string from step 1.
    - `ALLOWED_ORIGINS`: initially `http://localhost:5173`; replace it with your Vercel URL after the frontend deploys.
    - `GROQ_API_KEY`: create a key at [Groq API Keys](https://console.groq.com/keys). Keep it only in Render.
-   - Render generates `SESSION_SECRET`. The Blueprint sets `NODE_ENV=production`, `PGSSL=true`, `GROQ_MODEL`, and `DEMO_OTP=true` automatically.
+   - Render generates `SESSION_SECRET`. The Blueprint sets `NODE_ENV=production`, `GROQ_MODEL`, and `DEMO_OTP=true` automatically. The backend upgrades Neon’s `sslmode=require` URL parameter to `sslmode=verify-full` for certificate verification.
 5. Deploy the Blueprint. The API creates its PostgreSQL table automatically. Open `https://<render-service>.onrender.com/api/health`; expect `status: "ok"`, `database: "postgresql"`, and `ai: "groq"`.
 
 **Demo sign-in:** `DEMO_OTP=true` shows the one-time code in the login page instead of sending SMS. Anyone requesting a code can see it. Use fictional/test data only. Turn `DEMO_OTP` off and configure Twilio Verify before accepting real accounts; SMS is not part of the no-cost setup.
