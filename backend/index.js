@@ -22,6 +22,23 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const transcriptionRequests = new Map();
 const SESSION_SECRET = process.env.SESSION_SECRET || (process.env.NODE_ENV === "production" ? "" : "local-development-secret");
 const seed = { users: [], providers: [], bookings: [], otp: [], sessions: [], reviews: [], schemeApplications: [], smsMessages: [] };
+const opsSeed = {
+  sensors: [
+    { id: 's1', name: 'River gauge · Ghaghara', area: 'Bahraich, Uttar Pradesh', kind: 'river', value: 68, unit: '% bank-full', state: 'Monitoring', updatedAt: new Date().toISOString() },
+    { id: 's2', name: 'Rainfall · Nanpara', area: 'Bahraich, Uttar Pradesh', kind: 'rain', value: 42, unit: 'mm / 3h', state: 'Elevated', updatedAt: new Date().toISOString() },
+    { id: 's3', name: 'Soil moisture · Kaiserganj', area: 'Bahraich, Uttar Pradesh', kind: 'soil', value: 71, unit: '% saturation', state: 'Elevated', updatedAt: new Date().toISOString() },
+    { id: 's4', name: 'Temperature · Gonda', area: 'Gonda, Uttar Pradesh', kind: 'temperature', value: 34, unit: '°C', state: 'Normal', updatedAt: new Date().toISOString() },
+    { id: 's5', name: 'River gauge · Rapti', area: 'Balrampur, Uttar Pradesh', kind: 'river', value: 49, unit: '% bank-full', state: 'Normal', updatedAt: new Date().toISOString() },
+    { id: 's6', name: 'Rainfall · Tulsipur', area: 'Balrampur, Uttar Pradesh', kind: 'rain', value: 19, unit: 'mm / 3h', state: 'Normal', updatedAt: new Date().toISOString() },
+  ],
+  incidents: [
+    { id: 'INC-2048', title: 'Water entering low-lying homes', area: 'Nanpara · Bahraich', kind: 'Flood', severity: 'High', status: 'Dispatched', time: '8 min ago', detail: 'Community report: water rising near the eastern embankment.' },
+    { id: 'INC-2047', title: 'Road access disrupted', area: 'Kaiserganj · Bahraich', kind: 'Access', severity: 'Moderate', status: 'New', time: '21 min ago', detail: 'Two-wheeler access only; bridge approach is waterlogged.' },
+    { id: 'INC-2046', title: 'Drinking water needed', area: 'Tulsipur · Balrampur', kind: 'Supply', severity: 'Moderate', status: 'New', time: '43 min ago', detail: 'Village shelter requests clean water and ORS.' },
+  ],
+  responders: [ { id: 'r1', name: 'Asha response team', role: 'Field response', area: 'Nanpara', status: 'On route' }, { id: 'r2', name: 'PHC mobile unit', role: 'Medical', area: 'Bahraich', status: 'Available' }, { id: 'r3', name: 'Panchayat volunteers', role: 'Community', area: 'Kaiserganj', status: 'Available' } ],
+  resources: [ { id: 'w1', name: 'Rescue boats', available: 4, unit: 'boats' }, { id: 'w2', name: 'Emergency kits', available: 86, unit: 'kits' }, { id: 'w3', name: 'Drinking water', available: 240, unit: 'cases' }, { id: 'w4', name: 'Medical teams', available: 3, unit: 'teams' } ],
+};
 
 let store;
 if (database) {
@@ -38,6 +55,7 @@ if (database) {
   try { store = { ...seed, ...JSON.parse(await readFile(DATA_FILE, "utf8")) }; }
   catch (error) { if (error.code !== "ENOENT") throw error; store = structuredClone(seed); }
 }
+store.ops ||= structuredClone(opsSeed);
 function ensureRewards(user) {
   user.points ??= 0;
   user.rewardHistory ??= [];
@@ -251,6 +269,55 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && path === "/api/health") {
       if (database) await database.query("SELECT 1");
       return json(res, 200, { status: "ok", database: database ? "postgresql" : "local-file", ai: GROQ_API_KEY ? "groq" : process.env.OPENAI_API_KEY ? "openai" : "builtin", smsBooking: Boolean(process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_SMS_NUMBER && process.env.TWILIO_SMS_WEBHOOK_URL), smsNumber: process.env.TWILIO_SMS_NUMBER || null, time: new Date().toISOString() });
+    }
+    if (req.method === "GET" && path === "/api/ops/snapshot") {
+      return json(res, 200, { ...store.ops, generatedAt: new Date().toISOString() });
+    }
+    if (req.method === "POST" && path === "/api/ops/simulate") {
+      const data = await body(req);
+      const scenario = ["flood", "heat", "normal"].includes(data.scenario) ? data.scenario : null;
+      if (!scenario) return json(res, 400, { error: "scenario must be flood, heat, or normal" });
+      const values = scenario === "flood" ? { s1: 91, s2: 118, s3: 94, s4: 34, s5: 73, s6: 82 } : scenario === "heat" ? { s1: 68, s2: 18, s3: 42, s4: 43, s5: 49, s6: 19 } : { s1: 52, s2: 22, s3: 50, s4: 31, s5: 44, s6: 12 };
+      const now = new Date().toISOString();
+      store.ops.sensors = store.ops.sensors.map((sensor) => {
+        const value = values[sensor.id] ?? sensor.value;
+        return { ...sensor, value, state: value >= 80 ? "Alert" : value >= 55 ? "Elevated" : "Normal", updatedAt: now };
+      });
+      if (scenario !== "normal") {
+        const kind = scenario === "flood" ? "Flood" : "Heat";
+        store.ops.incidents.unshift({ id: `INC-${randomUUID().slice(0, 8).toUpperCase()}`, title: `${kind} scenario: community response drill`, area: scenario === "flood" ? "Nanpara · Bahraich" : "Gonda · Uttar Pradesh", kind, severity: "High", status: "New", time: "Just now", detail: "Created by the scenario simulator. Assign a response team to test the workflow." });
+      }
+      await persist();
+      return json(res, 200, { ...store.ops, generatedAt: now });
+    }
+    if (req.method === "POST" && path === "/api/ops/incidents") {
+      const data = await body(req);
+      const title = String(data.title || "").trim().slice(0, 160);
+      const area = String(data.area || "").trim().slice(0, 160);
+      if (!title || !area) return json(res, 400, { error: "Incident title and area are required" });
+      const incident = { id: `INC-${randomUUID().slice(0, 8).toUpperCase()}`, title, area, kind: "Community report", severity: "High", status: "New", time: "Just now", detail: "Reported by a community operator." };
+      store.ops.incidents.unshift(incident);
+      await persist();
+      return json(res, 201, { ...store.ops, generatedAt: new Date().toISOString() });
+    }
+    const incidentMatch = path.match(/^\/api\/ops\/incidents\/([^/]+)$/);
+    if (req.method === "PATCH" && incidentMatch) {
+      const data = await body(req);
+      const incident = store.ops.incidents.find((item) => item.id === decodeURIComponent(incidentMatch[1]));
+      if (!incident) return json(res, 404, { error: "Incident not found" });
+      if (!["New", "Dispatched", "Resolved"].includes(data.status)) return json(res, 400, { error: "Invalid incident status" });
+      incident.status = data.status;
+      await persist();
+      return json(res, 200, { ...store.ops, generatedAt: new Date().toISOString() });
+    }
+    const resourceMatch = path.match(/^\/api\/ops\/resources\/([^/]+)\/dispatch$/);
+    if (req.method === "POST" && resourceMatch) {
+      const resource = store.ops.resources.find((item) => item.id === decodeURIComponent(resourceMatch[1]));
+      if (!resource) return json(res, 404, { error: "Resource not found" });
+      if (resource.available <= 0) return json(res, 409, { error: "No units are available" });
+      resource.available -= 1;
+      await persist();
+      return json(res, 200, { ...store.ops, generatedAt: new Date().toISOString() });
     }
     if (req.method === "GET" && path === "/api/services") {
       return json(res, 200, { services: services.map((item) => ({ ...item, nameHi: serviceHindi[item.id], onlineProviders: store.providers.filter((provider) => provider.online && provider.skills.includes(item.id)).length })) });
