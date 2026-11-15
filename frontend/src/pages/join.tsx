@@ -116,6 +116,16 @@ export default function JoinPage() {
     finally { setIsLoading(false); }
   };
 
+  const beginApplication = async () => {
+    setSubmitError('');
+    if (!localStorage.getItem('sevasetu-token')) { navigate('/login', { state: { from: '/join', accountType: 'provider' } }); return; }
+    try {
+      const { user } = await apiRequest<{ user: { role?: string } }>('/auth/me');
+      if (user.role !== 'provider') { navigate('/login', { state: { from: '/join', accountType: 'provider' } }); return; }
+      setStep('personal');
+    } catch (error) { setSubmitError(error instanceof Error ? error.message : 'Reconnect to continue your provider application.'); }
+  };
+
   const canProceed = () => {
     if (step === 'personal') return form.name && form.phone.length >= 10 && form.city;
     if (step === 'skills') return selectedSkills.length > 0;
@@ -275,13 +285,7 @@ export default function JoinPage() {
                 </div>
 
                 <button
-                  onClick={() => {
-                    if (!localStorage.getItem('sevasetu-token')) {
-                      navigate('/login', { state: { from: '/join' } });
-                      return;
-                    }
-                    setStep('personal');
-                  }}
+                  onClick={() => void beginApplication()}
                   className="w-full py-3.5 rounded-full bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-all shadow-lg shadow-primary/25 flex items-center justify-center gap-2 mb-3"
                 >
                   {localStorage.getItem('sevasetu-token') ? (lang === 'hi' ? 'अभी शुरू करें' : 'Start application') : (lang === 'hi' ? 'साइन इन करके शुरू करें' : 'Sign in to start')} <ArrowRight size={15} />

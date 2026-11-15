@@ -32,7 +32,7 @@ export default function RewardsPage() {
     try { const data = await apiRequest<{ points: number; history: RewardEvent[]; lastCheckIn: string | null; serviceCredits?: ServiceCredit[] }>('/rewards'); setPoints(data.points); setHistory(data.history); setServiceCredits(data.serviceCredits || []); setLastCheckIn(data.lastCheckIn); setError(''); }
     catch (e) {
       const message = e instanceof Error ? e.message : t('Sign in to see rewards.', 'पुरस्कार देखने के लिए साइन इन करें।');
-      if (message === 'Sign in to continue') { localStorage.removeItem('sevasetu-token'); setSignedIn(false); setError(''); return; }
+      if (message === 'Sign in to continue') { localStorage.removeItem('sevasetu-token'); localStorage.removeItem('sevasetu-role'); setSignedIn(false); setError(''); return; }
       setError(message);
     }
   }, []);

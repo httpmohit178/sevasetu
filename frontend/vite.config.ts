@@ -5,8 +5,18 @@ import { fileURLToPath } from "node:url";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const offlineAssetManifest = {
+  name: 'sevasetu-offline-asset-manifest',
+  generateBundle(this: { emitFile: (file: { type: 'asset'; fileName: string; source: string }) => void }, _options: unknown, bundle: Record<string, { type: string; fileName: string }>) {
+    const files = Object.values(bundle)
+      .filter((item) => item.type === 'chunk' || /\.(css|woff2?|ttf|otf|svg|png|jpe?g|webp)$/i.test(item.fileName))
+      .map((item) => `/${item.fileName}`);
+    this.emitFile({ type: 'asset', fileName: 'precache-manifest.json', source: JSON.stringify(files) });
+  },
+};
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), offlineAssetManifest],
   resolve: {
     alias: {
       nothing: "/src/fallbacks/missingModule.ts",

@@ -2,12 +2,13 @@ const API_BASE = (import.meta.env.VITE_API_URL || "/api").replace(/\/$/, "");
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = typeof localStorage === "undefined" ? null : localStorage.getItem("sevasetu-token");
+  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
   let response: Response;
   try {
     response = await fetch(`${API_BASE}${path}`, {
       ...options,
       headers: {
-        "Content-Type": "application/json",
+        ...(!isFormData ? { "Content-Type": "application/json" } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options.headers,
       },

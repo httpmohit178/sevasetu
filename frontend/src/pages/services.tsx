@@ -5,6 +5,7 @@ import { Search, Shield, Home, Leaf, Palette, BookOpen, Truck, Wrench, Zap, Scis
 import { apiRequest } from '../lib/api-client';
 import { useAppLanguage } from '../hooks/useAppLanguage';
 import { SmartImage } from '../components/ui/smart-image';
+import { pendingOfflineBookings, queueOfflineBooking } from '../lib/offline-bookings';
 
 type Area = 'all' | 'rural' | 'urban';
 type CatalogService = { id: string; name: string; nameHi: string; startingPrice: number; onlineProviders: number; category: string; area: 'rural' | 'urban' };
@@ -81,6 +82,11 @@ export default function ServicesPage() {
   const [loading, setLoading] = useState(true);
   const [bookingId, setBookingId] = useState('');
   const [bookingDiscount, setBookingDiscount] = useState(0);
+  const [offlineQueueId, setOfflineQueueId] = useState(() => {
+    const token = localStorage.getItem('sevasetu-token');
+    return pendingOfflineBookings().find((item) => item.ownerId === token?.split('.', 1)[0])?.id || '';
+  });
+  const [smsInfo, setSmsInfo] = useState<{ enabled: boolean; number: string | null }>({ enabled: false, number: null });
   const [serviceCredits, setServiceCredits] = useState<ServiceCredit[]>([]);
   const [selectedCreditCode, setSelectedCreditCode] = useState(() => new URLSearchParams(window.location.search).get('credit') || '');
   const [busyId, setBusyId] = useState('');
@@ -105,6 +111,22 @@ export default function ServicesPage() {
     const refreshTimer = window.setInterval(() => void loadCatalog(), 30_000);
     return () => window.clearInterval(refreshTimer);
   }, [loadCatalog]);
+
+  useEffect(() => {
+    let active = true;
+    const loadSmsInfo = () => { void apiRequest<{ smsBooking?: boolean; smsNumber?: string | null }>('/health').then((data) => { if (active) setSmsInfo({ enabled: Boolean(data.smsBooking && data.smsNumber), number: data.smsNumber || null }); }).catch(() => {}); };
+    loadSmsInfo(); window.addEventListener('online', loadSmsInfo);
+    return () => { active = false; window.removeEventListener('online', loadSmsInfo); };
+  }, []);
+
+  useEffect(() => {
+    const synced = (event: Event) => {
+      const detail = (event as CustomEvent<{ queueId: string; bookingId: string }>).detail;
+      if (detail?.queueId === offlineQueueId) { setOfflineQueueId(''); setBookingId(detail.bookingId); setError(''); }
+    };
+    window.addEventListener('sevasetu-offline-booking-synced', synced);
+    return () => window.removeEventListener('sevasetu-offline-booking-synced', synced);
+  }, [offlineQueueId]);
 
   const loadCredits = useCallback(async () => {
     if (!localStorage.getItem('sevasetu-token')) { setServiceCredits([]); setSelectedCreditCode(''); return; }
@@ -133,13 +155,19 @@ export default function ServicesPage() {
 
   const book = async (service: CatalogService) => {
     if (!localStorage.getItem('sevasetu-token')) { navigate('/login', { state: { from: '/services' } }); return; }
-    setBusyId(service.id); setError(''); setBookingId('');
+    setBusyId(service.id); setError(''); setBookingId(''); setOfflineQueueId('');
     try {
       const result = await apiRequest<{ booking: { id: string; creditDiscount?: number } }>('/bookings', { method: 'POST', body: JSON.stringify({ serviceId: service.id, paymentMethod: 'cod', ...(selectedCreditCode ? { creditCode: selectedCreditCode } : {}) }) });
       setBookingId(result.booking.id);
       setBookingDiscount(result.booking.creditDiscount || 0);
       if (result.booking.creditDiscount) { setSelectedCreditCode(''); void loadCredits(); }
-    } catch (e) { setError(e instanceof Error ? e.message : t('Booking failed', 'बुकिंग नहीं हो सकी')); }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : t('Booking failed', 'बुकिंग नहीं हो सकी');
+      if (!navigator.onLine || message.startsWith('Could not connect to the SevaSetu API.')) {
+        try { setOfflineQueueId(queueOfflineBooking(service.id)); setError(''); }
+        catch (queueError) { setError(queueError instanceof Error ? queueError.message : message); }
+      } else setError(message);
+    }
     finally { setBusyId(''); }
   };
 
@@ -156,6 +184,8 @@ export default function ServicesPage() {
       {catalogWarning && <p role="status" className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{t('Showing the service catalogue. Live provider availability is temporarily unavailable.', 'सेवाओं की सूची दिखाई जा रही है। लाइव प्रदाता उपलब्धता अभी उपलब्ध नहीं है।')} <button onClick={() => { setLoading(true); void loadCatalog(); }} className="ml-2 font-bold underline">{t('Retry', 'फिर कोशिश करें')}</button></p>}
       {bookingId && <p role="status" className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-green-300 bg-green-50 p-3 text-sm text-green-900">{t('Booking request created', 'बुकिंग अनुरोध भेज दिया गया')} · #{bookingId}<Link className="font-bold underline" to="/tracker">{t('Track it', 'स्थिति देखें')}</Link></p>}
       {bookingId && bookingDiscount > 0 && <p role="status" className="-mt-3 mb-4 text-sm font-semibold text-green-800">{t(`₹${bookingDiscount} service credit applied.`, `₹${bookingDiscount} सेवा क्रेडिट लागू हुआ।`)}</p>}
+      {offlineQueueId && <p role="status" className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">{t('Saved on this phone. It has not been sent yet. It will sync when internet returns; keep this browser signed in.', 'इस फोन पर सुरक्षित। अभी भेजा नहीं गया। इंटरनेट लौटने पर सिंक होगा; इस ब्राउज़र में साइन इन रखें।')}</p>}
+      {smsInfo.enabled && smsInfo.number && <div className="mb-5 flex flex-col gap-2 rounded-2xl border border-primary/25 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-bold">{t('No mobile data? Book by SMS', 'मोबाइल डेटा नहीं है? SMS से बुक करें')}</p><p className="mt-1 text-sm text-muted-foreground">{t(`Text BOOK service-id | village and landmark to ${smsInfo.number}. Example: BOOK pump | Rampur, near school.`, `BOOK सेवा-id | गांव और पहचान लिखकर ${smsInfo.number} पर SMS भेजें। उदाहरण: BOOK pump | रामपुर, स्कूल के पास।`)}</p></div><a href={`sms:${smsInfo.number}?body=${encodeURIComponent('BOOK pump | Village, landmark')}`} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-primary px-5 text-sm font-bold text-white">{t('Open SMS', 'SMS खोलें')}</a></div>}
       {serviceCredits.length > 0 && <div className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-secondary/30 bg-secondary/5 p-3"><label htmlFor="service-credit" className="text-sm font-semibold">{t('Apply service credit', 'सेवा क्रेडिट लगाएं')}</label><select id="service-credit" value={selectedCreditCode} onChange={(event) => setSelectedCreditCode(event.target.value)} className="min-w-56 rounded-lg border border-border bg-card px-3 py-2 text-sm"><option value="">{t('No credit selected', 'कोई क्रेडिट नहीं')}</option>{serviceCredits.map((credit) => <option key={credit.code} value={credit.code}>{credit.code} · ₹{credit.value}</option>)}</select></div>}
       <div className="mb-4 grid grid-cols-3 gap-2">{areas.map((area) => <button key={area.id} onClick={() => setActiveArea(area.id)} className={`rounded-2xl border px-3 py-3 text-sm font-bold ${activeArea === area.id ? 'border-primary bg-primary text-white' : 'border-border bg-card'}`}>{lang === 'hi' ? area.hi : area.en}</button>)}</div>
       <div className="mb-6 flex gap-2 overflow-x-auto pb-2">{categories.map(({ id, label, labelHi, icon: Icon }) => <button key={id} onClick={() => setActiveCategory(id)} className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold ${activeCategory === id ? 'bg-primary text-white' : 'border border-border bg-card text-muted-foreground'}`}><Icon size={13} />{lang === 'hi' ? labelHi : label}</button>)}</div>

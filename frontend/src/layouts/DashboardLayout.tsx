@@ -76,6 +76,7 @@ export default function DashboardLayout({
   async function logout() {
     try { await apiRequest('/auth/logout', { method: 'POST' }); } catch { /* Local sign-out still works if the API is offline. */ }
     localStorage.removeItem('sevasetu-token');
+    localStorage.removeItem('sevasetu-role');
     window.dispatchEvent(new Event('sevasetu-auth-change'));
     navigate('/');
   }

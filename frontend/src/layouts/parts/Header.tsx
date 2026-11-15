@@ -3,6 +3,7 @@ import { Menu, X, Globe, ArrowRight, Sun, Moon, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useDarkMode } from '@/hooks/useDarkMode';
 import { useAppLanguage } from '@/hooks/useAppLanguage';
+import { apiRequest } from '@/lib/api-client';
 
 interface HeaderProps {
   lang?: 'en' | 'hi';
@@ -16,12 +17,22 @@ export default function Header({ lang: providedLang, onLangToggle }: HeaderProps
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(localStorage.getItem('sevasetu-token')));
+  const [isProvider, setIsProvider] = useState(() => localStorage.getItem('sevasetu-role') === 'provider');
   const { isDark, toggle: toggleDark } = useDarkMode();
 
   useEffect(() => {
-    const syncAuthentication = () => setIsAuthenticated(Boolean(localStorage.getItem('sevasetu-token')));
+    const syncAuthentication = () => {
+      setIsAuthenticated(Boolean(localStorage.getItem('sevasetu-token')));
+      setIsProvider(localStorage.getItem('sevasetu-role') === 'provider');
+    };
     window.addEventListener('sevasetu-auth-change', syncAuthentication);
     window.addEventListener('storage', syncAuthentication);
+    if (localStorage.getItem('sevasetu-token')) {
+      void apiRequest<{ user: { role?: string } }>('/auth/me').then(({ user }) => {
+        localStorage.setItem('sevasetu-role', user.role === 'provider' ? 'provider' : 'customer');
+        setIsProvider(user.role === 'provider');
+      }).catch(() => {});
+    }
     return () => {
       window.removeEventListener('sevasetu-auth-change', syncAuthentication);
       window.removeEventListener('storage', syncAuthentication);
@@ -129,10 +140,10 @@ export default function Header({ lang: providedLang, onLangToggle }: HeaderProps
             </button>
 
             <Link
-              to={isAuthenticated ? '/dashboard' : '/login'}
+              to={isAuthenticated ? (isProvider ? '/provider-dashboard' : '/dashboard') : '/login'}
               className="px-4 py-1.5 rounded-full border border-primary text-primary text-sm font-semibold hover:bg-primary hover:text-white transition-all duration-200"
             >
-              {isAuthenticated ? (lang === 'hi' ? 'डैशबोर्ड' : 'Dashboard') : (lang === 'hi' ? 'लॉगिन' : 'Login')}
+              {isAuthenticated ? (isProvider ? (lang === 'hi' ? 'प्रदाता डैशबोर्ड' : 'Provider dashboard') : (lang === 'hi' ? 'डैशबोर्ड' : 'Customer dashboard')) : (lang === 'hi' ? 'लॉगिन' : 'Login')}
             </Link>
 
             <Link
@@ -200,11 +211,11 @@ export default function Header({ lang: providedLang, onLangToggle }: HeaderProps
                 {lang === 'en' ? 'हिंदी में बदलें' : 'Switch to English'}
               </button>
               <Link
-                to={isAuthenticated ? '/dashboard' : '/login'}
+              to={isAuthenticated ? (isProvider ? '/provider-dashboard' : '/dashboard') : '/login'}
                 className="px-4 py-2 rounded-full border border-primary text-primary text-sm font-semibold text-center hover:bg-primary hover:text-white transition-all"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                {isAuthenticated ? (lang === 'hi' ? 'डैशबोर्ड' : 'Dashboard') : (lang === 'hi' ? 'लॉगिन' : 'Login')}
+                {isAuthenticated ? (isProvider ? (lang === 'hi' ? 'प्रदाता डैशबोर्ड' : 'Provider dashboard') : (lang === 'hi' ? 'डैशबोर्ड' : 'Customer dashboard')) : (lang === 'hi' ? 'लॉगिन' : 'Login')}
               </Link>
               <Link
                 to="/join"

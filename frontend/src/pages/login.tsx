@@ -2,7 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Phone, ArrowRight, ArrowLeft, Shield, CheckCircle,
+  Phone, ArrowRight, ArrowLeft, Shield, CheckCircle, UserRound, BriefcaseBusiness,
   Globe, Zap, Star, RefreshCw
 } from 'lucide-react';
 import { apiRequest } from '../lib/api-client';
@@ -75,6 +75,7 @@ export default function LoginPage() {
   const [emailPassword, setEmailPassword] = useState('');
   const [emailName, setEmailName] = useState('');
   const [emailMode, setEmailMode] = useState<'login' | 'register'>('login');
+  const [accountType, setAccountType] = useState<'customer' | 'provider'>('customer');
   const [canResend, setCanResend] = useState(false);
   const [resendKey, setResendKey] = useState(0);
   const [name, setName] = useState('');
@@ -87,7 +88,16 @@ export default function LoginPage() {
   const location = useLocation();
   const requestedPath = (location.state as { from?: string } | null)?.from || new URLSearchParams(location.search).get('redirect');
   const redirectPath = requestedPath?.startsWith('/') && !requestedPath.startsWith('//') ? requestedPath : '';
-  const navigateAfterLogin = (role?: string) => navigate(redirectPath || (role === 'provider' ? '/provider-dashboard' : '/dashboard'), { replace: true });
+  useEffect(() => { if (redirectPath === '/join') setAccountType('provider'); }, [redirectPath]);
+  const navigateAfterLogin = async (role?: string) => {
+    if (redirectPath) { navigate(redirectPath, { replace: true }); return; }
+    if (role === 'provider') {
+      try {
+        const { provider } = await apiRequest<{ provider: unknown }>('/providers/me');
+        navigate(provider ? '/provider-dashboard' : '/join', { replace: true });
+      } catch { navigate('/join', { replace: true }); }
+    } else navigate('/dashboard', { replace: true });
+  };
 
   const handleEmailSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -96,12 +106,13 @@ export default function LoginPage() {
     try {
       const endpoint = emailMode === 'register' ? '/auth/register' : '/auth/login';
       const payload = emailMode === 'register'
-        ? { name: emailName, email, password: emailPassword }
-        : { email, password: emailPassword };
+        ? { name: emailName, email, password: emailPassword, role: accountType }
+        : { email, password: emailPassword, role: accountType };
       const result = await apiRequest<{ token: string; user: { role?: string } }>(endpoint, { method: 'POST', body: JSON.stringify(payload) });
       localStorage.setItem('sevasetu-token', result.token);
+      localStorage.setItem('sevasetu-role', result.user.role || accountType);
       window.dispatchEvent(new Event('sevasetu-auth-change'));
-      navigateAfterLogin(result.user.role);
+      void navigateAfterLogin(result.user.role);
     } catch (error) { setAuthError(error instanceof Error ? error.message : 'Could not sign in'); }
     finally { setIsLoading(false); }
   };
@@ -111,7 +122,7 @@ export default function LoginPage() {
     setIsLoading(true);
     setAuthError('');
     try {
-      const result = await apiRequest<{ developmentCode?: string; demoMode?: boolean }>('/auth/otp', { method: 'POST', body: JSON.stringify({ phone }) });
+      const result = await apiRequest<{ developmentCode?: string; demoMode?: boolean }>('/auth/otp', { method: 'POST', body: JSON.stringify({ phone, role: accountType }) });
       setDevelopmentCode(result.developmentCode || '');
       setDemoOtp(Boolean(result.demoMode));
       setCanResend(false);
@@ -124,11 +135,13 @@ export default function LoginPage() {
     setIsLoading(true);
     setAuthError('');
     try {
-      const result = await apiRequest<{ token: string; user: { name?: string; city?: string } }>('/auth/verify', { method: 'POST', body: JSON.stringify({ phone, code: otp }) });
+      const result = await apiRequest<{ token: string; user: { name?: string; city?: string; role?: string } }>('/auth/verify', { method: 'POST', body: JSON.stringify({ phone, code: otp, role: accountType }) });
       localStorage.setItem('sevasetu-token', result.token);
-      setName(result.user.name || ''); setCity(result.user.city || ''); setStep(result.user.name ? 'success' : 'profile');
+      localStorage.setItem('sevasetu-role', result.user.role || accountType);
+      const hasName = Boolean(result.user.name && result.user.name !== 'SMS customer');
+      setName(hasName ? result.user.name || '' : ''); setCity(result.user.city || ''); setStep(hasName ? 'success' : 'profile');
       window.dispatchEvent(new Event('sevasetu-auth-change'));
-      if (result.user.name) setTimeout(() => navigateAfterLogin(), 1000);
+      if (hasName) setTimeout(() => { void navigateAfterLogin(result.user.role); }, 800);
     } catch (error) { setAuthError(error instanceof Error ? error.message : 'Could not verify the code'); }
     finally { setIsLoading(false); }
   };
@@ -138,10 +151,10 @@ export default function LoginPage() {
     setIsLoading(true);
     setAuthError('');
     try {
-      await apiRequest('/auth/profile', { method: 'PATCH', body: JSON.stringify({ name, city }) });
+      const result = await apiRequest<{ user: { role?: string } }>('/auth/profile', { method: 'PATCH', body: JSON.stringify({ name, city }) });
       setStep('success');
       window.dispatchEvent(new Event('sevasetu-auth-change'));
-      setTimeout(() => navigateAfterLogin(), 1200);
+      setTimeout(() => { void navigateAfterLogin(result.user.role); }, 800);
     } catch (error) { setAuthError(error instanceof Error ? error.message : 'Could not save your profile'); }
     finally { setIsLoading(false); }
   };
@@ -256,6 +269,15 @@ export default function LoginPage() {
 
             {authError && <p role="alert" className="mb-4 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">{authError}</p>}
 
+            {['email', 'phone'].includes(step) && <div className="mb-5 grid grid-cols-2 gap-3" role="group" aria-label={lang === 'hi' ? 'खाता प्रकार चुनें' : 'Choose account type'}>
+              {([
+                { id: 'customer' as const, Icon: UserRound, en: 'Customer', hi: 'ग्राहक', detail: lang === 'hi' ? 'सेवा बुक करें' : 'Book local services' },
+                { id: 'provider' as const, Icon: BriefcaseBusiness, en: 'Provider', hi: 'सेवा प्रदाता', detail: lang === 'hi' ? 'काम और अनुरोध संभालें' : 'Manage jobs and requests' },
+              ]).map(({ id, Icon, en, hi, detail }) => <button key={id} type="button" onClick={() => { setAccountType(id); setAuthError(''); }} aria-pressed={accountType === id} className={`rounded-2xl border-2 p-3 text-left transition-colors ${accountType === id ? 'border-primary bg-primary/5' : 'border-border bg-card hover:border-primary/40'}`}>
+                <span className="flex items-center gap-2 font-bold text-foreground"><Icon size={17} className="text-primary" />{lang === 'hi' ? hi : en}</span><span className="mt-1 block text-xs text-muted-foreground">{detail}</span>
+              </button>)}
+            </div>}
+
             {/* ── STEP: Phone ─────────────────────────────────────────── */}
             {step === 'phone' && (
               <motion.div key="phone" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}>
@@ -343,7 +365,9 @@ export default function LoginPage() {
                   {emailMode === 'login' ? (lang === 'hi' ? 'ईमेल से साइन इन करें' : 'Sign in with email') : (lang === 'hi' ? 'अपना खाता बनाएं' : 'Create your account')}
                 </h1>
                 <p className="mb-5 text-sm text-muted-foreground">
-                  {lang === 'hi' ? 'ईमेल और पासवर्ड से सुरक्षित रूप से जारी रखें।' : 'Use your email and password to continue securely.'}
+                  {accountType === 'provider'
+                    ? (lang === 'hi' ? 'प्रदाता खाता ग्राहक खाते से अलग है। अपने प्रदाता खाते से लॉगिन करें या नया खाता बनाएं।' : 'Provider accounts are separate from customer accounts. Sign in to your provider account or create one.')
+                    : (lang === 'hi' ? 'ईमेल और पासवर्ड से सुरक्षित रूप से जारी रखें।' : 'Use your email and password to continue securely.')}
                 </p>
                 <form onSubmit={(event) => void handleEmailSubmit(event)} className="space-y-3">
                   {emailMode === 'register' && <div>

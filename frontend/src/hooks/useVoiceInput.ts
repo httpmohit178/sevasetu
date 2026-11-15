@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { apiRequest } from '@/lib/api-client';
 
 export type VoiceState = 'idle' | 'listening' | 'processing' | 'error';
 
@@ -75,6 +76,9 @@ export function useVoiceInput({ lang = 'en', onResult, onError }: UseVoiceInputO
   const [voiceState, setVoiceState] = useState<VoiceState>('idle');
   const [transcript, setTranscript] = useState('');
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const finalTranscriptRef = useRef('');
   const hadErrorRef = useRef(false);
   const disposedRef = useRef(false);
@@ -85,15 +89,66 @@ export function useVoiceInput({ lang = 'en', onResult, onError }: UseVoiceInputO
   onResultRef.current = onResult;
   onErrorRef.current = onError;
 
-  const isSupported = typeof window !== 'undefined' && Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
+  const isSupported = typeof window !== 'undefined' && Boolean(window.SpeechRecognition || window.webkitSpeechRecognition || window.MediaRecorder);
+
+  const startRecordingFallback = useCallback(async () => {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      const message = 'Browser speech recognition failed, and microphone recording is not supported here. Try current Chrome or Edge.';
+      setVoiceState('error'); onErrorRef.current?.(message); return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (disposedRef.current) { stream.getTracks().forEach((track) => track.stop()); return; }
+      mediaStreamRef.current = stream;
+      audioChunksRef.current = [];
+      const recorder = new MediaRecorder(stream);
+      recorderRef.current = recorder;
+      recorder.ondataavailable = (event) => { if (event.data.size) audioChunksRef.current.push(event.data); };
+      recorder.onerror = () => {
+        stream.getTracks().forEach((track) => track.stop());
+        recorderRef.current = null; mediaStreamRef.current = null;
+        setVoiceState('error');
+        onErrorRef.current?.('Microphone recording failed. Check microphone access and try again.');
+      };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop());
+        recorderRef.current = null; mediaStreamRef.current = null;
+        setVoiceState('processing');
+        const audio = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+        audioChunksRef.current = [];
+        if (audio.size < 1500) {
+          setVoiceState('error'); onErrorRef.current?.('No speech was recorded. Hold the microphone, speak, then press stop.'); return;
+        }
+        const form = new FormData();
+        form.append('file', audio, 'voice.webm');
+        form.append('model', 'whisper-large-v3-turbo');
+        form.append('language', lang === 'hi' ? 'hi' : 'en');
+        try {
+          const result = await apiRequest<{ transcript: string }>('/ai/transcribe', { method: 'POST', body: form });
+          setTranscript(result.transcript);
+          setVoiceState('processing');
+          onResultRef.current?.(result.transcript);
+        } catch (error) {
+          setVoiceState('error');
+          onErrorRef.current?.(error instanceof Error ? error.message : 'Voice transcription failed. Try again or type your request.');
+        }
+      };
+      recorder.start();
+      setVoiceState('listening');
+      onErrorRef.current?.('Browser speech service is unavailable. Speak, then press the microphone again to send this recording for transcription.');
+    } catch (error) {
+      setVoiceState('error');
+      onErrorRef.current?.(error instanceof Error && error.name === 'NotAllowedError'
+        ? 'Allow microphone access in your browser, then try again.'
+        : 'Could not start microphone recording. Check microphone access and try again.');
+    }
+  }, [lang]);
 
   const startListening = useCallback(() => {
     if (recognitionRef.current) return;
     const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognitionClass) {
-      const message = 'Voice input is not supported in this browser. Use a current version of Chrome or Edge.';
-      setVoiceState('error');
-      onErrorRef.current?.(message);
+      void startRecordingFallback();
       return;
     }
     if (window.isSecureContext === false) {
@@ -131,6 +186,12 @@ export function useVoiceInput({ lang = 'en', onResult, onError }: UseVoiceInputO
     recognition.onerror = (event) => {
       if (disposedRef.current || event.error === 'aborted') return;
       hadErrorRef.current = true;
+      if (event.error === 'network') {
+        recognition.abort();
+        recognitionRef.current = null;
+        void startRecordingFallback();
+        return;
+      }
       setVoiceState('error');
       onErrorRef.current?.(readableVoiceError(event.error, window.isSecureContext));
       idleTimerRef.current = window.setTimeout(() => setVoiceState('idle'), 4500);
@@ -160,9 +221,10 @@ export function useVoiceInput({ lang = 'en', onResult, onError }: UseVoiceInputO
       onErrorRef.current?.(readableVoiceError(code, window.isSecureContext));
       idleTimerRef.current = window.setTimeout(() => setVoiceState('idle'), 4500);
     }
-  }, [lang]);
+  }, [lang, startRecordingFallback]);
 
   const stopListening = useCallback(() => {
+    if (recorderRef.current?.state === 'recording') { recorderRef.current.stop(); return; }
     const recognition = recognitionRef.current;
     if (!recognition) { setVoiceState('idle'); return; }
     try { recognition.stop(); }
@@ -179,6 +241,9 @@ export function useVoiceInput({ lang = 'en', onResult, onError }: UseVoiceInputO
     if (idleTimerRef.current !== null) window.clearTimeout(idleTimerRef.current);
     recognitionRef.current?.abort();
     recognitionRef.current = null;
+    if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
+    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+    mediaStreamRef.current = null;
   }, []);
 
   return { voiceState, isSupported, startListening, stopListening, transcript, clearTranscript };

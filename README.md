@@ -80,13 +80,21 @@ Keep secrets in `backend/.env` or the hosting provider's secret settings. Never 
 |---|---|---|
 | `SESSION_SECRET` | Backend | Long random secret used to sign sessions. |
 | `DATABASE_URL` | Backend | Optional PostgreSQL URL. If omitted, local JSON storage is used. |
-| `GROQ_API_KEY` | Backend | Optional Groq key for AI answers. Obtain it from [Groq Console](https://console.groq.com/keys). |
+| `GROQ_API_KEY` | Backend | Optional Groq key for AI answers and fallback microphone transcription when browser speech recognition cannot connect. Obtain it from [Groq Console](https://console.groq.com/keys). |
 | `GROQ_MODEL` | Backend | Groq model name; default is `openai/gpt-oss-120b`. |
 | `ALLOWED_ORIGINS` | Backend | Comma-separated list of frontend origins allowed to call the API. |
 | `DEMO_OTP` | Backend | Enables visible one-time codes for a public demo. Do not use for real accounts. |
 | `VITE_API_URL` | Frontend build | Public API base URL, such as `https://your-api.onrender.com/api`. |
 
 For production SMS verification, configure Twilio Verify using `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_VERIFY_SERVICE_SID`. The demo OTP option is for demonstrations only.
+
+### SMS booking and rural/offline use
+
+The app caches its shell and service catalogue after its first online visit. A signed-in customer can save a booking request while offline; it stays on that device and syncs when connectivity returns. It is not sent to a provider until it syncs. Do not clear browser storage before sync completes. This does not make a first visit or first sign-in available offline.
+
+For booking by SMS without mobile data, configure a Twilio number with inbound SMS enabled. Set `TWILIO_SMS_NUMBER`, `TWILIO_AUTH_TOKEN`, and `TWILIO_SMS_WEBHOOK_URL` in the backend host, with the webhook URL set to the exact public URL `https://your-api.example.com/api/sms/inbound`. In Twilio Console, set the number's **A MESSAGE COMES IN** webhook to that same URL with HTTP POST. The backend verifies Twilio's signed webhook, creates a customer account from the sender number if needed, and stores SMS bookings in the same booking database shown by the web portal. Use persistent PostgreSQL (`DATABASE_URL`) for production so portal updates survive server restarts. Twilio calls a public webhook and expects a TwiML reply; see [Twilio's inbound SMS guide](https://www.twilio.com/docs/messaging/tutorials/how-to-receive-and-reply/node-js).
+
+Text `HELP` for the syntax, `STATUS` for the latest request, or `BOOK <service-id> | <village and landmark>` (example: `BOOK pump | Rampur, near school`). The customer portal needs an internet connection to fetch updated booking status. SMS replies confirm receipt only; the provider must still accept the request.
 
 ## Database options
 

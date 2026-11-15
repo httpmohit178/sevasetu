@@ -19,8 +19,9 @@ function secureDatabaseUrl(connectionString) {
 }
 const database = process.env.DATABASE_URL ? new Pool({ connectionString: secureDatabaseUrl(process.env.DATABASE_URL) }) : null;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const transcriptionRequests = new Map();
 const SESSION_SECRET = process.env.SESSION_SECRET || (process.env.NODE_ENV === "production" ? "" : "local-development-secret");
-const seed = { users: [], providers: [], bookings: [], otp: [], sessions: [], reviews: [], schemeApplications: [] };
+const seed = { users: [], providers: [], bookings: [], otp: [], sessions: [], reviews: [], schemeApplications: [], smsMessages: [] };
 
 let store;
 if (database) {
@@ -74,6 +75,15 @@ async function body(req) {
   try { return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}"); }
   catch { throw Object.assign(new Error("Invalid JSON"), { status: 400 }); }
 }
+async function rawBody(req, maxBytes = 10_000_000) {
+  const chunks = []; let size = 0;
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > maxBytes) throw Object.assign(new Error("Audio file is too large (10 MB limit)"), { status: 413 });
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+}
 const phoneNumber = (value) => String(value || "").replace(/[^\d+]/g, "");
 const normalizePhone = (value) => {
   const phone = phoneNumber(value); const digits = phone.replace(/\D/g, "");
@@ -97,7 +107,7 @@ function passwordMatches(password, digest) {
 }
 function publicUser(user) {
   const { passwordHash, ...safe } = user;
-  return safe;
+  return { ...safe, role: safe.role === "provider" ? "provider" : "customer" };
 }
 async function createSession(user) {
   const token = tokenFor(user.id);
@@ -121,6 +131,13 @@ function currentUser(req) {
 function requireUser(req, res) {
   const user = currentUser(req);
   if (!user) json(res, 401, { error: "Sign in to continue" });
+  return user;
+}
+function requireRole(req, res, role) {
+  const user = requireUser(req, res);
+  if (!user) return null;
+  const actualRole = user.role === "provider" ? "provider" : "customer";
+  if (actualRole !== role) { json(res, 403, { error: role === "provider" ? "Sign in with a provider account to continue" : "Sign in with a customer account to continue" }); return null; }
   return user;
 }
 async function sendTwilioCode(phone) {
@@ -182,9 +199,58 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
   const path = url.pathname.replace(/\/$/, "") || "/";
   try {
+    if (req.method === "POST" && path === "/api/sms/inbound") {
+      const respondSms = (message, status = 200) => { const xml = `<Response><Message>${String(message).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</Message></Response>`; res.writeHead(status, { "Content-Type": "text/xml; charset=utf-8" }); res.end(xml); };
+      if (!process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_SMS_WEBHOOK_URL) return respondSms("SMS booking is not configured. Please contact SevaSetu support.", 503);
+      const contentType = req.headers["content-type"] || "";
+      if (!contentType.startsWith("application/x-www-form-urlencoded")) return respondSms("Invalid message format.", 400);
+      const raw = await rawBody(req, 16_000);
+      const params = new URLSearchParams(raw.toString("utf8"));
+      const signature = String(req.headers["x-twilio-signature"] || "");
+      const signedPayload = process.env.TWILIO_SMS_WEBHOOK_URL + [...params.keys()].sort().map((key) => `${key}${params.getAll(key).join("")}`).join("");
+      const expected = createHmac("sha1", process.env.TWILIO_AUTH_TOKEN).update(signedPayload).digest("base64");
+      const receivedBytes = Buffer.from(signature); const expectedBytes = Buffer.from(expected);
+      if (receivedBytes.length !== expectedBytes.length || !timingSafeEqual(receivedBytes, expectedBytes)) return respondSms("Could not verify this SMS request.", 403);
+      if (process.env.TWILIO_SMS_NUMBER && normalizePhone(params.get("To")) !== normalizePhone(process.env.TWILIO_SMS_NUMBER)) return respondSms("This SMS destination is not configured for SevaSetu.", 403);
+      const sender = normalizePhone(params.get("From"));
+      const sid = String(params.get("MessageSid") || "").slice(0, 80);
+      if (!sid || !sender) return respondSms("Missing sender details. Try again.", 400);
+      store.smsMessages ||= [];
+      if (store.smsMessages.includes(sid)) {
+        const previous = store.bookings.find((item) => item.smsMessageSid === sid);
+        return respondSms(previous ? `SevaSetu: request ${previous.id} already received. Check the app tracker for updates.` : "SevaSetu: message already received.");
+      }
+      store.smsMessages.push(sid);
+      const text = String(params.get("Body") || "").trim();
+      const customer = store.users.find((item) => item.phone === sender);
+      if (/^(help|मदद|सहायता)$/i.test(text)) {
+        await persist();
+        return respondSms("SevaSetu: BOOK <service> | <village, landmark> (बुक <सेवा> | <गांव, पहचान>). Example: BOOK pump | Rampur, near school. Send STATUS for your latest booking.");
+      }
+      if (/^(status|स्थिति)$/i.test(text)) {
+        await persist();
+        if (!customer) return respondSms("No customer account found for this number. Sign in once on SevaSetu with this phone number, then text STATUS.");
+        const latest = store.bookings.find((item) => item.customerId === customer.id);
+        const hindiStatus = { confirmed: "पुष्टि की गई, प्रदाता की स्वीकृति बाकी", assigned: "प्रदाता नियुक्त", en_route: "प्रदाता रास्ते में", arrived: "प्रदाता पहुंच गए", in_progress: "सेवा जारी", completed: "सेवा पूरी", cancelled: "रद्द" };
+        return respondSms(latest ? (/स्थिति/.test(text) ? `आपका अनुरोध ${latest.id}: ${hindiStatus[latest.status] || latest.status}। इंटरनेट मिलने पर सेवा सेतु ट्रैकर देखें।` : `Latest request ${latest.id}: ${latest.status}. Open SevaSetu Tracker when internet is available.`) : "No booking requests found. Text HELP for booking instructions.");
+      }
+      const match = text.match(/^(?:book|बुक)\s+([^|]+)\|\s*(.{3,300})$/i);
+      if (!match) { await persist(); return respondSms("Use BOOK/बुक <service/सेवा> | <village and landmark/गांव और पहचान>. Send HELP/मदद for an example."); }
+      const serviceKey = match[1].trim().toLowerCase();
+      const aliases = { plumber: "plumbing", electrician: "electrical", cleaner: "cleaning", carpenter: "carpentry", veterinary: "veterinary", vet: "veterinary", tractor: "tractor", "crop advice": "crop", "soil test": "soil", "pump repair": "pump" };
+      const serviceId = aliases[serviceKey] || serviceKey;
+      const service = services.find((item) => item.id === serviceId || item.name.toLowerCase() === serviceKey || serviceHindi[item.id] === match[1].trim());
+      if (!service) { await persist(); return respondSms("Service not found. Text the service id, like pump, plumbing, veterinary, or crop. Send HELP for instructions."); }
+      if (customer?.role === "provider") { await persist(); return respondSms("Provider accounts cannot place customer bookings. Use a separate customer account."); }
+      const bookingCustomer = customer || ensureRewards({ id: randomUUID(), phone: sender, name: "SMS customer", city: "", role: "customer", createdAt: new Date().toISOString() });
+      if (!customer) store.users.push(bookingCustomer);
+      const booking = { id: `SVS-${randomUUID().slice(0, 8).toUpperCase()}`, customerId: bookingCustomer.id, serviceId: service.id, serviceName: service.name, scheduledAt: null, address: match[2].trim(), originalAmount: service.startingPrice, creditDiscount: 0, amount: service.startingPrice, paymentMethod: "cod", paymentStatus: "pending", status: "confirmed", providerUserId: null, preferredProviderId: null, providerLocation: null, source: "sms", smsMessageSid: sid, events: [{ status: "confirmed", at: new Date().toISOString() }], createdAt: new Date().toISOString() };
+      store.bookings.unshift(booking); await persist();
+      return respondSms(/बुक/.test(text) ? `सेवा सेतु अनुरोध ${booking.id} प्राप्त। ${serviceHindi[service.id] || service.name} की शुरुआती कीमत ₹${service.startingPrice}। सेवा के बाद प्रदाता को भुगतान करें। प्रदाता की स्वीकृति बाकी है; STATUS से स्थिति देखें।` : `SevaSetu booking request ${booking.id} received for ${service.name}. Starting at Rs ${service.startingPrice}; pay provider after service. Provider acceptance is still required. Text STATUS for updates.`);
+    }
     if (req.method === "GET" && path === "/api/health") {
       if (database) await database.query("SELECT 1");
-      return json(res, 200, { status: "ok", database: database ? "postgresql" : "local-file", ai: GROQ_API_KEY ? "groq" : process.env.OPENAI_API_KEY ? "openai" : "builtin", time: new Date().toISOString() });
+      return json(res, 200, { status: "ok", database: database ? "postgresql" : "local-file", ai: GROQ_API_KEY ? "groq" : process.env.OPENAI_API_KEY ? "openai" : "builtin", smsBooking: Boolean(process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_SMS_NUMBER && process.env.TWILIO_SMS_WEBHOOK_URL), smsNumber: process.env.TWILIO_SMS_NUMBER || null, time: new Date().toISOString() });
     }
     if (req.method === "GET" && path === "/api/services") {
       return json(res, 200, { services: services.map((item) => ({ ...item, nameHi: serviceHindi[item.id], onlineProviders: store.providers.filter((provider) => provider.online && provider.skills.includes(item.id)).length })) });
@@ -218,6 +284,28 @@ const server = createServer(async (req, res) => {
       if (typeof localized.en !== "string" || typeof localized.hi !== "string") throw new Error("AI service returned an invalid bilingual answer");
       return json(res, 200, { configured: true, answerEn: localized.en, answerHi: localized.hi });
     }
+    if (req.method === "POST" && path === "/api/ai/transcribe") {
+      if (!GROQ_API_KEY) return json(res, 503, { error: "Voice fallback is not configured. Set GROQ_API_KEY on the backend." });
+      const contentType = req.headers["content-type"] || "";
+      if (!contentType.startsWith("multipart/form-data; boundary=")) return json(res, 400, { error: "Send a recorded audio file to transcribe" });
+      const audio = await rawBody(req);
+      if (!audio.length) return json(res, 400, { error: "No audio was recorded. Try speaking again." });
+      const now = Date.now();
+      const recent = (transcriptionRequests.get(req.socket.remoteAddress) || []).filter((time) => now - time < 60_000);
+      if (recent.length >= 8) return json(res, 429, { error: "Too many voice requests. Wait a minute and try again." });
+      recent.push(now); transcriptionRequests.set(req.socket.remoteAddress, recent);
+      const upstream = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${GROQ_API_KEY}`, "Content-Type": contentType },
+        body: audio,
+        signal: AbortSignal.timeout(45_000),
+      });
+      const result = await upstream.json().catch(() => ({}));
+      if (!upstream.ok) throw new Error("Voice transcription service is unavailable. Try again or use text input.");
+      const transcript = String(result.text || "").trim().slice(0, 2000);
+      if (!transcript) return json(res, 422, { error: "No speech was detected. Try speaking closer to the microphone." });
+      return json(res, 200, { transcript });
+    }
     if (req.method === "POST" && path === "/api/auth/otp") {
       const data = await body(req); const phone = normalizePhone(data.phone);
       if (phone.replace(/\D/g, "").length < 10) return json(res, 400, { error: "Enter a valid phone number" });
@@ -237,8 +325,10 @@ const server = createServer(async (req, res) => {
       if (TWILIO) valid = await checkTwilioCode(phone, code);
       else { const challenge = store.otp.find((item) => item.phone === phone && item.expiresAt > Date.now()); valid = Boolean(challenge && challenge.code === code); store.otp = store.otp.filter((item) => item.phone !== phone); }
       if (!valid) return json(res, 401, { error: "The code is invalid or expired" });
+      const requestedRole = data.role === "provider" ? "provider" : "customer";
       let user = store.users.find((item) => item.phone === phone);
-      if (!user) { user = ensureRewards({ id: randomUUID(), phone, name: String(data.name || "").trim(), city: String(data.city || "").trim(), role: "customer", createdAt: new Date().toISOString() }); store.users.push(user); }
+      if (user && (user.role === "provider" ? "provider" : "customer") !== requestedRole) return json(res, 403, { error: `This phone belongs to a ${user.role === "provider" ? "provider" : "customer"} account. Choose the matching sign-in option.` });
+      if (!user) { user = ensureRewards({ id: randomUUID(), phone, name: String(data.name || "").trim(), city: String(data.city || "").trim(), role: requestedRole, createdAt: new Date().toISOString() }); store.users.push(user); }
       else { if (data.name) user.name = String(data.name).trim(); if (data.city) user.city = String(data.city).trim(); }
       const token = tokenFor(user.id); store.sessions = store.sessions.filter((item) => item.userId !== user.id);
       store.sessions.push({ id: token, userId: user.id, expiresAt: Date.now() + 30 * 24 * 60 * 60_000 }); await persist();
@@ -253,9 +343,10 @@ const server = createServer(async (req, res) => {
       if (password.length < 8 || password.length > 200) return json(res, 400, { error: "Password must be at least 8 characters" });
       if (!name) return json(res, 400, { error: "Enter your name" });
       if (store.users.some((item) => item.email === email)) return json(res, 409, { error: "An account with this email already exists. Sign in instead." });
+      const role = data.role === "provider" ? "provider" : "customer";
       const phone = data.phone ? normalizePhone(data.phone) : "";
       if (phone && phone.replace(/\D/g, "").length < 10) return json(res, 400, { error: "Enter a valid phone number" });
-      const user = ensureRewards({ id: randomUUID(), name, email, phone, city: String(data.city || "").trim().slice(0, 100), role: "customer", passwordHash: passwordDigest(password), createdAt: new Date().toISOString() });
+      const user = ensureRewards({ id: randomUUID(), name, email, phone, city: String(data.city || "").trim().slice(0, 100), role, passwordHash: passwordDigest(password), createdAt: new Date().toISOString() });
       store.users.push(user);
       const token = await createSession(user);
       return json(res, 201, { token, user: publicUser(user) });
@@ -266,6 +357,7 @@ const server = createServer(async (req, res) => {
       const password = String(data.password || "");
       const user = store.users.find((item) => item.email === email);
       if (!user?.passwordHash || !passwordMatches(password, user.passwordHash)) return json(res, 401, { error: "Email or password is incorrect" });
+      if (data.role && (data.role === "provider" ? "provider" : "customer") !== (user.role === "provider" ? "provider" : "customer")) return json(res, 403, { error: `This is a ${user.role === "provider" ? "provider" : "customer"} account. Choose the matching sign-in option.` });
       const token = await createSession(user);
       return json(res, 200, { token, user: publicUser(user) });
     }
@@ -274,12 +366,12 @@ const server = createServer(async (req, res) => {
     if (req.method === "PATCH" && path === "/api/preferences") { const user = requireUser(req, res); if (!user) return; const data = await body(req); const allowed = ["bookingUpdates", "promotions", "govtSchemes", "smsAlerts", "emailDigest", "pushNotifs", "sevaPoints", "providerArrival"]; user.preferences = { ...(user.preferences || {}) }; for (const key of allowed) if (typeof data[key] === "boolean") user.preferences[key] = data[key]; await persist(); return json(res, 200, { preferences: user.preferences }); }
     if (req.method === "PATCH" && path === "/api/auth/profile") { const user = requireUser(req, res); if (!user) return; const data = await body(req); if (data.name !== undefined) user.name = String(data.name).trim().slice(0, 100); if (data.city !== undefined) user.city = String(data.city).trim().slice(0, 100); if (!user.name) return json(res, 400, { error: "Name is required" }); await persist(); return json(res, 200, { user: publicUser(user) }); }
     if (req.method === "POST" && path === "/api/auth/logout") { const user = requireUser(req, res); if (!user) return; const token = req.headers.authorization?.replace(/^Bearer\s+/i, ""); store.sessions = store.sessions.filter((item) => item.id !== token); await persist(); return json(res, 200, { ok: true }); }
-    if (req.method === "GET" && path === "/api/rewards") { const user = requireUser(req, res); if (!user) return; ensureRewards(user); await persist(); return json(res, 200, { points: user.points || 0, history: user.rewardHistory || [], lastCheckIn: user.lastCheckIn || null, serviceCredits: user.serviceCredits }); }
-    if (req.method === "POST" && path === "/api/rewards/check-in") { const user = requireUser(req, res); if (!user) return; const today = new Date().toISOString().slice(0, 10); if (user.lastCheckIn === today) return json(res, 409, { error: "You already checked in today" }); user.lastCheckIn = today; user.points = (user.points || 0) + 5; user.rewardHistory ||= []; user.rewardHistory.unshift({ id: randomUUID(), points: 5, label: "Daily check-in", labelHi: "दैनिक चेक-इन", createdAt: new Date().toISOString() }); await persist(); return json(res, 200, { points: user.points, lastCheckIn: today }); }
-    if (req.method === "POST" && path === "/api/rewards/redeem") { const user = requireUser(req, res); if (!user) return; const data = await body(req); const points = Number(data.points); if (![100, 500, 1000, 2000].includes(points)) return json(res, 400, { error: "Choose a listed reward" }); if ((user.points || 0) < points) return json(res, 409, { error: "Not enough points" }); user.points -= points; const code = `SEVA-${randomUUID().slice(0, 8).toUpperCase()}`; const credit = { code, value: points / 10, usedAt: null, createdAt: new Date().toISOString() }; user.serviceCredits ||= []; user.serviceCredits.push(credit); user.rewardHistory ||= []; user.rewardHistory.unshift({ id: randomUUID(), points: -points, label: `Redeemed ₹${points / 10} service credit (${code})`, labelHi: `₹${points / 10} सेवा क्रेडिट रिडीम (${code})`, createdAt: new Date().toISOString() }); await persist(); return json(res, 200, { points: user.points, code, value: points / 10 }); }
-    if (req.method === "POST" && path === "/api/schemes/applications") { const user = requireUser(req, res); if (!user) return; const data = await body(req); if (!String(data.schemeId || "").trim() || !String(data.name || "").trim() || phoneNumber(data.phone).replace(/\D/g, "").length < 10) return json(res, 400, { error: "Scheme, name, and valid phone number are required" }); const application = { id: randomUUID(), userId: user.id, schemeId: String(data.schemeId).slice(0, 100), name: String(data.name).trim().slice(0, 100), phone: normalizePhone(data.phone), status: "submitted", createdAt: new Date().toISOString() }; store.schemeApplications.push(application); await persist(); return json(res, 201, { application }); }
+    if (req.method === "GET" && path === "/api/rewards") { const user = requireRole(req, res, "customer"); if (!user) return; ensureRewards(user); await persist(); return json(res, 200, { points: user.points || 0, history: user.rewardHistory || [], lastCheckIn: user.lastCheckIn || null, serviceCredits: user.serviceCredits }); }
+    if (req.method === "POST" && path === "/api/rewards/check-in") { const user = requireRole(req, res, "customer"); if (!user) return; const today = new Date().toISOString().slice(0, 10); if (user.lastCheckIn === today) return json(res, 409, { error: "You already checked in today" }); user.lastCheckIn = today; user.points = (user.points || 0) + 5; user.rewardHistory ||= []; user.rewardHistory.unshift({ id: randomUUID(), points: 5, label: "Daily check-in", labelHi: "दैनिक चेक-इन", createdAt: new Date().toISOString() }); await persist(); return json(res, 200, { points: user.points, lastCheckIn: today }); }
+    if (req.method === "POST" && path === "/api/rewards/redeem") { const user = requireRole(req, res, "customer"); if (!user) return; const data = await body(req); const points = Number(data.points); if (![100, 500, 1000, 2000].includes(points)) return json(res, 400, { error: "Choose a listed reward" }); if ((user.points || 0) < points) return json(res, 409, { error: "Not enough points" }); user.points -= points; const code = `SEVA-${randomUUID().slice(0, 8).toUpperCase()}`; const credit = { code, value: points / 10, usedAt: null, createdAt: new Date().toISOString() }; user.serviceCredits ||= []; user.serviceCredits.push(credit); user.rewardHistory ||= []; user.rewardHistory.unshift({ id: randomUUID(), points: -points, label: `Redeemed ₹${points / 10} service credit (${code})`, labelHi: `₹${points / 10} सेवा क्रेडिट रिडीम (${code})`, createdAt: new Date().toISOString() }); await persist(); return json(res, 200, { points: user.points, code, value: points / 10 }); }
+    if (req.method === "POST" && path === "/api/schemes/applications") { const user = requireRole(req, res, "customer"); if (!user) return; const data = await body(req); if (!String(data.schemeId || "").trim() || !String(data.name || "").trim() || phoneNumber(data.phone).replace(/\D/g, "").length < 10) return json(res, 400, { error: "Scheme, name, and valid phone number are required" }); const application = { id: randomUUID(), userId: user.id, schemeId: String(data.schemeId).slice(0, 100), name: String(data.name).trim().slice(0, 100), phone: normalizePhone(data.phone), status: "submitted", createdAt: new Date().toISOString() }; store.schemeApplications.push(application); await persist(); return json(res, 201, { application }); }
     if (req.method === "POST" && path === "/api/providers") {
-      const user = requireUser(req, res); if (!user) return;
+      const user = requireRole(req, res, "provider"); if (!user) return;
       const data = await body(req); const skills = Array.isArray(data.skills) ? data.skills.map(String).slice(0, 20) : [];
       if (!String(data.name || user.name).trim() || skills.length === 0 || !String(data.city || user.city).trim()) return json(res, 400, { error: "Name, city, and at least one skill are required" });
       let provider = store.providers.find((item) => item.userId === user.id);
@@ -287,41 +379,41 @@ const server = createServer(async (req, res) => {
       if (!phone || phone.replace(/\D/g, "").length < 10) return json(res, 400, { error: "A valid phone number is required for provider registration" });
       user.phone = phone;
       provider = { ...(provider || { id: randomUUID(), userId: user.id, createdAt: new Date().toISOString() }), name: String(data.name || user.name).trim(), phone, city: String(data.city || user.city).trim(), address: String(data.address || "").trim(), experience: Number(data.experience || 0), skills, status: "pending", online: provider?.online || false };
-      store.providers = store.providers.filter((item) => item.userId !== user.id); store.providers.push(provider); user.role = "provider"; await persist(); return json(res, 201, { provider });
+      store.providers = store.providers.filter((item) => item.userId !== user.id); store.providers.push(provider); await persist(); return json(res, 201, { provider });
     }
-    if (req.method === "GET" && path === "/api/providers/me") { const user = requireUser(req, res); if (!user) return; return json(res, 200, { provider: store.providers.find((item) => item.userId === user.id) || null }); }
-    if (req.method === "PATCH" && path === "/api/providers/me/availability") { const user = requireUser(req, res); if (!user) return; const provider = store.providers.find((item) => item.userId === user.id); if (!provider) return json(res, 404, { error: "Submit a provider application first" }); const data = await body(req); provider.online = Boolean(data.online); await persist(); return json(res, 200, { provider }); }
+    if (req.method === "GET" && path === "/api/providers/me") { const user = requireRole(req, res, "provider"); if (!user) return; return json(res, 200, { provider: store.providers.find((item) => item.userId === user.id) || null }); }
+    if (req.method === "PATCH" && path === "/api/providers/me/availability") { const user = requireRole(req, res, "provider"); if (!user) return; const provider = store.providers.find((item) => item.userId === user.id); if (!provider) return json(res, 404, { error: "Submit a provider application first" }); const data = await body(req); provider.online = Boolean(data.online); await persist(); return json(res, 200, { provider }); }
     if (req.method === "GET" && path === "/api/providers") {
       const service = services.find((item) => item.id === url.searchParams.get("serviceId"));
       if (!service) return json(res, 400, { error: "Choose a valid service" });
       const providers = store.providers.filter((item) => item.online && item.skills.some((skill) => skill.toLowerCase() === service.id || skill.toLowerCase() === service.name.toLowerCase())).map((item) => ({ id: item.id, name: item.name, skill: service.name, skillHi: serviceHindi[service.id] || service.name, rating: 0, reviews: 0, distance: "—", price: `₹${service.startingPrice}`, location: item.city, available: true, verified: false, avatar: item.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase(), city: item.city }));
       return json(res, 200, { providers });
     }
-    if (req.method === "PATCH" && path === "/api/providers/me/availability") { const user = requireUser(req, res); if (!user) return; const provider = store.providers.find((item) => item.userId === user.id); if (!provider) return json(res, 404, { error: "Submit a provider application first" }); const data = await body(req); provider.online = Boolean(data.online); await persist(); return json(res, 200, { provider }); }
-    if (req.method === "GET" && path === "/api/provider/jobs") { const user = requireUser(req, res); if (!user) return; const provider = store.providers.find((item) => item.userId === user.id); if (!provider) return json(res, 404, { error: "Submit a provider application first" }); const skills = provider.skills.map((skill) => skill.toLowerCase()); const jobs = store.bookings.filter((booking) => (booking.providerUserId === user.id) || (!booking.providerUserId && (booking.status === "confirmed" || booking.status === "pending") && skills.includes(booking.serviceId) && (!booking.preferredProviderId || booking.preferredProviderId === provider.id))).map((booking) => ({ ...booking, providerUserId: booking.providerUserId })); return json(res, 200, { jobs }); }
+    if (req.method === "GET" && path === "/api/provider/jobs") { const user = requireRole(req, res, "provider"); if (!user) return; const provider = store.providers.find((item) => item.userId === user.id); if (!provider) return json(res, 404, { error: "Submit a provider application first" }); const skills = provider.skills.map((skill) => skill.toLowerCase()); const jobs = store.bookings.filter((booking) => (booking.providerUserId === user.id) || (!booking.providerUserId && (booking.status === "confirmed" || booking.status === "pending") && skills.includes(booking.serviceId) && (!booking.preferredProviderId || booking.preferredProviderId === provider.id))).map((booking) => ({ ...booking, providerUserId: booking.providerUserId })); return json(res, 200, { jobs }); }
     if (req.method === "GET" && path === "/api/bookings") { const user = requireUser(req, res); if (!user) return; return json(res, 200, { bookings: store.bookings.filter((item) => item.customerId === user.id || item.providerUserId === user.id).map((item) => bookingView(item, user.id)) }); }
     if (req.method === "POST" && path === "/api/bookings") {
-      const user = requireUser(req, res); if (!user) return;
+      const user = requireRole(req, res, "customer"); if (!user) return;
       const data = await body(req); const service = services.find((item) => item.id === data.serviceId);
       if (!service) return json(res, 400, { error: "Choose a valid service" });
+      if (data.clientRequestId && store.bookings.some((item) => item.customerId === user.id && item.clientRequestId === data.clientRequestId)) return json(res, 200, { booking: store.bookings.find((item) => item.customerId === user.id && item.clientRequestId === data.clientRequestId) });
       const requestedProvider = data.providerId ? store.providers.find((item) => item.id === data.providerId && item.online && item.skills.includes(service.id)) : null;
       if (data.providerId && !requestedProvider) return json(res, 409, { error: "That provider is no longer available for this service" });
       const creditCode = String(data.creditCode || "").trim().toUpperCase();
       const credit = creditCode ? (user.serviceCredits || []).find((item) => item.code === creditCode && !item.usedAt) : null;
       if (creditCode && !credit) return json(res, 409, { error: "That service credit is invalid or has already been used" });
       const creditDiscount = credit ? Math.min(service.startingPrice, credit.value) : 0;
-      const booking = { id: `SVS-${randomUUID().slice(0, 8).toUpperCase()}`, customerId: user.id, serviceId: service.id, serviceName: service.name, scheduledAt: data.scheduledAt || null, address: String(data.address || "").trim(), originalAmount: service.startingPrice, creditDiscount, creditCode: credit?.code || null, amount: service.startingPrice - creditDiscount, paymentMethod: data.paymentMethod === "cod" ? "cod" : null, paymentStatus: data.paymentMethod === "cod" ? "pending" : "unpaid", status: "confirmed", providerUserId: null, preferredProviderId: requestedProvider?.id || null, providerLocation: null, events: [{ status: "confirmed", at: new Date().toISOString() }], createdAt: new Date().toISOString() };
+      const booking = { id: `SVS-${randomUUID().slice(0, 8).toUpperCase()}`, clientRequestId: data.clientRequestId ? String(data.clientRequestId).slice(0, 100) : null, customerId: user.id, serviceId: service.id, serviceName: service.name, scheduledAt: data.scheduledAt || null, address: String(data.address || "").trim(), originalAmount: service.startingPrice, creditDiscount, creditCode: credit?.code || null, amount: service.startingPrice - creditDiscount, paymentMethod: data.paymentMethod === "cod" ? "cod" : null, paymentStatus: data.paymentMethod === "cod" ? "pending" : "unpaid", status: "confirmed", providerUserId: null, preferredProviderId: requestedProvider?.id || null, providerLocation: null, events: [{ status: "confirmed", at: new Date().toISOString() }], createdAt: new Date().toISOString() };
       if (credit) credit.usedAt = new Date().toISOString();
       store.bookings.unshift(booking); await persist(); return json(res, 201, { booking });
     }
     const bookingMatch = path.match(/^\/api\/bookings\/([^/]+)(?:\/(accept|location|customer-location|review))?$/);
     if (bookingMatch && req.method === "GET") { const user = requireUser(req, res); if (!user) return; const booking = store.bookings.find((item) => item.id === bookingMatch[1] && (item.customerId === user.id || item.providerUserId === user.id)); return booking ? json(res, 200, { booking: bookingView(booking, user.id) }) : json(res, 404, { error: "Booking not found" }); }
-    if (bookingMatch && req.method === "POST" && bookingMatch[2] === "accept") { const user = requireUser(req, res); if (!user) return; const booking = store.bookings.find((item) => item.id === bookingMatch[1]); const provider = store.providers.find((item) => item.userId === user.id); if (!booking || !provider || !provider.online) return json(res, 404, { error: "This job is not available" }); if (booking.providerUserId || !provider.skills.includes(booking.serviceId) || (booking.preferredProviderId && booking.preferredProviderId !== provider.id)) return json(res, 409, { error: "This job was already accepted or does not match your skills" }); booking.providerUserId = user.id; booking.status = "assigned"; booking.events ||= []; booking.events.push({ status: "assigned", at: new Date().toISOString() }); await persist(); return json(res, 200, { booking }); }
-    if (bookingMatch && req.method === "POST" && bookingMatch[2] === "customer-location") { const user = requireUser(req, res); if (!user) return; const booking = store.bookings.find((item) => item.id === bookingMatch[1] && item.customerId === user.id && !["completed", "cancelled"].includes(item.status)); if (!booking) return json(res, 404, { error: "Active booking not found" }); const data = await body(req); const latitude = Number(data.latitude); const longitude = Number(data.longitude); if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return json(res, 400, { error: "Invalid coordinates" }); booking.customerLocation = { latitude, longitude, updatedAt: new Date().toISOString() }; await persist(); return json(res, 200, { customerLocation: booking.customerLocation }); }
-    if (bookingMatch && req.method === "POST" && bookingMatch[2] === "location") { const user = requireUser(req, res); if (!user) return; const booking = store.bookings.find((item) => item.id === bookingMatch[1] && item.providerUserId === user.id && !["completed", "cancelled"].includes(item.status)); if (!booking) return json(res, 404, { error: "Active assigned booking not found" }); const data = await body(req); const latitude = Number(data.latitude); const longitude = Number(data.longitude); if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return json(res, 400, { error: "Invalid coordinates" }); booking.providerLocation = { latitude, longitude, updatedAt: new Date().toISOString() }; await persist(); return json(res, 200, { providerLocation: booking.providerLocation }); }
+    if (bookingMatch && req.method === "POST" && bookingMatch[2] === "accept") { const user = requireRole(req, res, "provider"); if (!user) return; const booking = store.bookings.find((item) => item.id === bookingMatch[1]); const provider = store.providers.find((item) => item.userId === user.id); if (!booking || !provider || !provider.online) return json(res, 404, { error: "This job is not available" }); if (booking.providerUserId || !provider.skills.includes(booking.serviceId) || (booking.preferredProviderId && booking.preferredProviderId !== provider.id)) return json(res, 409, { error: "This job was already accepted or does not match your skills" }); booking.providerUserId = user.id; booking.status = "assigned"; booking.events ||= []; booking.events.push({ status: "assigned", at: new Date().toISOString() }); await persist(); return json(res, 200, { booking }); }
+    if (bookingMatch && req.method === "POST" && bookingMatch[2] === "customer-location") { const user = requireRole(req, res, "customer"); if (!user) return; const booking = store.bookings.find((item) => item.id === bookingMatch[1] && item.customerId === user.id && !["completed", "cancelled"].includes(item.status)); if (!booking) return json(res, 404, { error: "Active booking not found" }); const data = await body(req); const latitude = Number(data.latitude); const longitude = Number(data.longitude); if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return json(res, 400, { error: "Invalid coordinates" }); booking.customerLocation = { latitude, longitude, updatedAt: new Date().toISOString() }; await persist(); return json(res, 200, { customerLocation: booking.customerLocation }); }
+    if (bookingMatch && req.method === "POST" && bookingMatch[2] === "location") { const user = requireRole(req, res, "provider"); if (!user) return; const booking = store.bookings.find((item) => item.id === bookingMatch[1] && item.providerUserId === user.id && !["completed", "cancelled"].includes(item.status)); if (!booking) return json(res, 404, { error: "Active assigned booking not found" }); const data = await body(req); const latitude = Number(data.latitude); const longitude = Number(data.longitude); if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return json(res, 400, { error: "Invalid coordinates" }); booking.providerLocation = { latitude, longitude, updatedAt: new Date().toISOString() }; await persist(); return json(res, 200, { providerLocation: booking.providerLocation }); }
     if (bookingMatch && req.method === "POST" && bookingMatch[2] === "review") { const user = requireUser(req, res); if (!user) return; const booking = store.bookings.find((item) => item.id === bookingMatch[1] && item.customerId === user.id && item.status === "completed"); if (!booking) return json(res, 404, { error: "Completed booking not found" }); if (store.reviews.some((item) => item.bookingId === booking.id)) return json(res, 409, { error: "This booking already has a review" }); const data = await body(req); const rating = Number(data.rating); if (!Number.isInteger(rating) || rating < 1 || rating > 5) return json(res, 400, { error: "Choose a rating from 1 to 5" }); const review = { id: randomUUID(), bookingId: booking.id, customerId: user.id, rating, comment: String(data.comment || "").slice(0, 1000), createdAt: new Date().toISOString() }; store.reviews.push(review); user.points = (user.points || 0) + 20; user.rewardHistory ||= []; user.rewardHistory.unshift({ id: randomUUID(), points: 20, label: "Booking review", labelHi: "सेवा समीक्षा", createdAt: new Date().toISOString() }); await persist(); return json(res, 201, { review, points: user.points }); }
     if (bookingMatch && req.method === "PATCH") { const user = requireUser(req, res); if (!user) return; const booking = store.bookings.find((item) => item.id === bookingMatch[1]); if (!booking) return json(res, 404, { error: "Booking not found" }); const data = await body(req); const allowedNext = { assigned: "en_route", en_route: "arrived", arrived: "in_progress", in_progress: "completed" }; if (user.id === booking.customerId && data.status === "cancelled" && ["confirmed", "assigned"].includes(booking.status)) booking.status = "cancelled"; else if (user.id === booking.providerUserId && allowedNext[booking.status] === data.status) booking.status = data.status; else return json(res, 403, { error: "This status change is not allowed" }); booking.events ||= []; booking.events.push({ status: booking.status, at: new Date().toISOString() }); if (booking.status === "completed" && !booking.pointsAwarded) { const customer = store.users.find((item) => item.id === booking.customerId); if (customer) { customer.points = (customer.points || 0) + 50; customer.rewardHistory ||= []; customer.rewardHistory.unshift({ id: randomUUID(), points: 50, label: `Completed ${booking.serviceName} booking`, labelHi: `${booking.serviceName} की सेवा पूरी`, createdAt: new Date().toISOString() }); booking.pointsAwarded = true; } } await persist(); return json(res, 200, { booking }); }
-    if (req.method === "POST" && path === "/api/payments/cod") { const user = requireUser(req, res); if (!user) return; const data = await body(req); const booking = store.bookings.find((item) => item.id === data.bookingId && item.customerId === user.id); if (!booking) return json(res, 404, { error: "Booking not found" }); booking.paymentMethod = "cod"; booking.paymentStatus = "pending"; await persist(); return json(res, 200, { booking }); }
+    if (req.method === "POST" && path === "/api/payments/cod") { const user = requireRole(req, res, "customer"); if (!user) return; const data = await body(req); const booking = store.bookings.find((item) => item.id === data.bookingId && item.customerId === user.id); if (!booking) return json(res, 404, { error: "Booking not found" }); booking.paymentMethod = "cod"; booking.paymentStatus = "pending"; await persist(); return json(res, 200, { booking }); }
     return json(res, 404, { error: "Route not found" });
   } catch (error) {
     console.error(error);
