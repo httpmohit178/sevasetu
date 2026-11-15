@@ -16,7 +16,7 @@ services:
       - key: SESSION_SECRET
         generateValue: true
       - key: ALLOWED_ORIGINS
-        sync: false
+        value: https://sevasetu-nu.vercel.app
       - key: GROQ_API_KEY
         sync: false
       - key: GROQ_MODEL

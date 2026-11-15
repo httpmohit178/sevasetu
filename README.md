@@ -118,18 +118,18 @@ Create a PostgreSQL project in [Neon](https://console.neon.tech/), copy its pool
 ### 3. Deploy the backend on Render
 
 1. In Render choose **New → Blueprint**, connect the GitHub repository, and use Blueprint path `backend/render.yaml`.
-2. Enter `DATABASE_URL` from Neon, set `ALLOWED_ORIGINS` temporarily to `http://localhost:5173`, and enter `GROQ_API_KEY` if you want Groq AI.
+2. Enter `DATABASE_URL` from Neon and enter `GROQ_API_KEY` if you want Groq AI. The Blueprint allows `https://sevasetu-nu.vercel.app` as the production frontend origin.
 3. Let Render generate `SESSION_SECRET`. The Blueprint configures the service and demo OTP setting.
 4. Deploy, then check `https://YOUR-RENDER-SERVICE.onrender.com/api/health`.
 
 ### 4. Deploy the frontend on Vercel
 
 1. Import the same repository in Vercel and set **Root Directory** to `frontend`.
-2. Add `VITE_API_URL` with `https://YOUR-RENDER-SERVICE.onrender.com/api`.
-3. Deploy. Copy your Vercel domain and set Render's `ALLOWED_ORIGINS` to that exact origin (for example, `https://your-project.vercel.app`), then redeploy the backend.
+2. The committed `frontend/.env.production` points to `https://sevasetu-api-7oj0.onrender.com/api`. In Vercel, set `VITE_API_URL` to that same value if a dashboard variable already overrides it.
+3. In Render's Environment page confirm `ALLOWED_ORIGINS=https://sevasetu-nu.vercel.app`; redeploy the backend after changing it.
 4. Redeploy Vercel after changing `VITE_API_URL`, since Vite embeds it during the build.
 
-If login or account creation shows **“Failed to fetch”**, check the API connection: `VITE_API_URL` must be the Render service URL plus `/api` (for example, `https://sevasetu-api.onrender.com/api`), and Render `ALLOWED_ORIGINS` must exactly match the Vercel site origin (for example, `https://your-project.vercel.app`, with no path). Verify the API at `https://YOUR-RENDER-SERVICE.onrender.com/api/health`, then redeploy Render and Vercel after changing the variables. Preview deployments need their own allowed origin if you test from a preview URL.
+If login or account creation shows **“Failed to fetch”**, check [the API health endpoint](https://sevasetu-api-7oj0.onrender.com/api/health) first. Vercel `VITE_API_URL` must be `https://sevasetu-api-7oj0.onrender.com/api`, and Render `ALLOWED_ORIGINS` must be exactly `https://sevasetu-nu.vercel.app` (no trailing slash or path). Save and redeploy both services after changing the variables. Preview deployments need their own allowed origin if you test from a preview URL.
 
 ## Checks
 
