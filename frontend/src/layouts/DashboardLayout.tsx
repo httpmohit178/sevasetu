@@ -65,14 +65,13 @@ export default function DashboardLayout({
   const location = useLocation();
   const navigate = useNavigate();
   const { isDark, toggle: toggleDark } = useDarkMode();
-  const [appLang, setAppLang] = useAppLanguage();
+  const [, setAppLang] = useAppLanguage();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
   const initials = userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   const avatarColor = userType === 'provider' ? 'bg-secondary' : 'bg-primary';
-  const activeLang = lang || appLang;
   const toggleLanguage = onLangToggle || (() => setAppLang(current => current === 'en' ? 'hi' : 'en'));
   async function logout() {
     try { await apiRequest('/auth/logout', { method: 'POST' }); } catch { /* Local sign-out still works if the API is offline. */ }

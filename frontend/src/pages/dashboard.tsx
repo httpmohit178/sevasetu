@@ -6,7 +6,6 @@ import { useAppLanguage } from '@/hooks/useAppLanguage';
 import { apiRequest } from '../lib/api-client';
 import { PhotoBanner } from '../components/ui/photo-banner';
 
-type Lang = 'en' | 'hi';
 type Booking = { id: string; serviceName: string; status: string; amount: number; createdAt: string; scheduledAt?: string | null; providerName?: string | null };
 type User = { name: string; city?: string; role: string };
 

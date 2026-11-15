@@ -2,15 +2,16 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 import {
-  User, Bell, Globe, Palette, Shield, CreditCard,
-  ChevronRight, Camera, Check, Sun, Moon, Smartphone,
-  Lock, Eye, EyeOff, Trash2, Save,
+  User, Bell, Globe, Palette, CreditCard,
+  ChevronRight, Check, Sun, Moon, Smartphone,
+  Lock, Eye, EyeOff, Save,
   LayoutDashboard, ShoppingBag, MapPin, Gift, Zap, Building2,
   Info
 } from 'lucide-react';
 import DashboardLayout, { NavItem } from '@/layouts/DashboardLayout';
 import { apiRequest } from '@/lib/api-client';
 import { useAppLanguage } from '../hooks/useAppLanguage';
+import { PhotoBanner } from '../components/ui/photo-banner';
 
 type Lang = 'en' | 'hi';
 type Section = 'profile' | 'notifications' | 'language' | 'appearance' | 'payments';
@@ -188,7 +189,7 @@ function LanguageSection({ lang }: { lang: Lang }) {
   const languages = [
     { code: 'en', name: 'English', native: 'English', flag: '🇬🇧' },
     { code: 'hi', name: 'Hindi', native: 'हिन्दी', flag: '🇮🇳' },
-  ];
+  ] as const;
 
   return (
     <div className="space-y-4">
@@ -264,7 +265,7 @@ function AppearanceSection({ lang }: { lang: Lang }) {
 }
 
 // ─── Security Section ─────────────────────────────────────────────────────────
-function SecuritySection({ lang }: { lang: Lang }) {
+export function SecuritySection({ lang }: { lang: Lang }) {
   const t = (en: string, hi: string) => lang === 'hi' ? hi : en;
   const [showPass, setShowPass] = useState(false);
   const [twoFA, setTwoFA] = useState(true);
@@ -341,7 +342,7 @@ function SecuritySection({ lang }: { lang: Lang }) {
 }
 
 // ─── Payments Section ─────────────────────────────────────────────────────────
-function PaymentsSection({ lang }: { lang: Lang }) {
+export function PaymentsSection({ lang }: { lang: Lang }) {
   const t = (en: string, hi: string) => lang === 'hi' ? hi : en;
 
   return (

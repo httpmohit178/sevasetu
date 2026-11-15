@@ -7,7 +7,7 @@ import { useVoiceInput } from '../hooks/useVoiceInput';
 import { useAppLanguage } from '../hooks/useAppLanguage';
 import {
   Mic, MicOff, Search, ArrowRight, Star, MapPin, Shield, Zap, ChevronRight,
-  Home, Leaf, Palette, Heart, BookOpen, Truck, AlertCircle, Building2,
+  Home, Leaf, Palette, BookOpen, Truck,
   MessageCircle, Globe, Award, TrendingUp, Users, CheckCircle, Phone, Utensils, Scissors
 } from 'lucide-react';
 

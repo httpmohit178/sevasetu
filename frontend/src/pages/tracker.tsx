@@ -5,7 +5,6 @@ import { apiRequest } from '../lib/api-client';
 import { useAppLanguage } from '../hooks/useAppLanguage';
 import { PhotoBanner } from '../components/ui/photo-banner';
 
-type Lang = 'en' | 'hi';
 type Point = { latitude: number; longitude: number; updatedAt?: string };
 type Booking = {
   id: string; serviceId: string; serviceName: string; scheduledAt?: string | null; address?: string;

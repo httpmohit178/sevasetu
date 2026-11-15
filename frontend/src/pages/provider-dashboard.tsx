@@ -6,7 +6,6 @@ import { useAppLanguage } from '@/hooks/useAppLanguage';
 import { apiRequest } from '../lib/api-client';
 import { PhotoBanner } from '../components/ui/photo-banner';
 
-type Lang = 'en' | 'hi';
 type Provider = { id: string; name: string; city: string; skills: string[]; online: boolean; status: string };
 type Job = { id: string; serviceId: string; serviceName: string; scheduledAt?: string; address?: string; amount: number; status: string; createdAt: string; providerUserId?: string | null };
 

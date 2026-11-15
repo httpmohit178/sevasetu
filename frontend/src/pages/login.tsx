@@ -10,7 +10,6 @@ import { useAppLanguage } from '../hooks/useAppLanguage';
 import { SceneCard } from '../components/ui/scene-card';
 import { PhotoBanner } from '../components/ui/photo-banner';
 
-type Lang = 'en' | 'hi';
 type Step = 'phone' | 'email' | 'otp' | 'profile' | 'success';
 
 // ─── OTP Input ────────────────────────────────────────────────────────────────

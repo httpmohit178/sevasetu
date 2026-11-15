@@ -6,7 +6,6 @@ import { apiRequest } from '../lib/api-client';
 import { useAppLanguage } from '../hooks/useAppLanguage';
 import { SmartImage } from '../components/ui/smart-image';
 
-type Lang = 'en' | 'hi';
 type Area = 'all' | 'rural' | 'urban';
 type CatalogService = { id: string; name: string; nameHi: string; startingPrice: number; onlineProviders: number; category: string; area: 'rural' | 'urban' };
 type ServiceCredit = { code: string; value: number; usedAt: string | null };

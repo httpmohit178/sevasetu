@@ -5,7 +5,6 @@ import { apiRequest } from '../lib/api-client';
 import { PhotoBanner } from '../components/ui/photo-banner';
 import { useAppLanguage } from '../hooks/useAppLanguage';
 
-type Lang = 'en' | 'hi';
 type RewardEvent = { id: string; points: number; label: string; labelHi: string; createdAt: string };
 type ServiceCredit = { code: string; value: number; usedAt: string | null; createdAt: string };
 const offers = [

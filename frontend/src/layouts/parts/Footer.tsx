@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Globe, MessageCircle } from 'lucide-react';
+import { Globe, MessageCircle, Phone, Mail, MapPin } from 'lucide-react';
 import { useAppLanguage } from '../../hooks/useAppLanguage';
 
 export default function Footer() {
