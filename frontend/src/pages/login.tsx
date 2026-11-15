@@ -3,12 +3,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Phone, ArrowRight, ArrowLeft, Shield, CheckCircle,
-  Globe, Zap, Star, Users, RefreshCw
+  Globe, Zap, Star, RefreshCw
 } from 'lucide-react';
 import { apiRequest } from '../lib/api-client';
 import { useAppLanguage } from '../hooks/useAppLanguage';
-import { SceneCard } from '../components/ui/scene-card';
 import { PhotoBanner } from '../components/ui/photo-banner';
+import { SmartImage } from '../components/ui/smart-image';
+import { imageSources } from '../lib/image-sources';
 
 type Step = 'phone' | 'email' | 'otp' | 'profile' | 'success';
 
@@ -152,7 +153,7 @@ export default function LoginPage() {
 
       {/* ── Left Panel (desktop) ───────────────────────────────────────────── */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-secondary via-secondary/90 to-primary flex-col justify-between p-12">
-        <SceneCard scene="urban" alt="Animated city skyline" className="absolute inset-0 h-full w-full opacity-40" />
+        <SmartImage src={imageSources.urban} alt="People and services in a city neighborhood" className="absolute inset-0 h-full w-full opacity-40" />
         {/* Background decoration */}
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-950/80 via-emerald-900/65 to-orange-900/75" />
         <div className="absolute bottom-0 right-0 w-80 h-80 rounded-full bg-white/5 translate-x-1/3 translate-y-1/3" />
@@ -190,17 +191,17 @@ export default function LoginPage() {
           </h2>
           <p className="text-white/75 text-lg mb-8">
             {lang === 'hi'
-              ? 'लॉगिन करें और 50,000+ विश्वसनीय प्रदाताओं तक पहुंचें'
-              : 'Sign in and access 50,000+ trusted service providers'}
+              ? 'अपनी बुकिंग, सेवा प्रदाता कार्य और पुरस्कार एक ही खाते से संभालें।'
+              : 'Manage your bookings, provider work, and rewards from one account.'}
           </p>
 
           {/* Feature list */}
           <div className="space-y-3">
             {[
-              { icon: Zap, text: lang === 'hi' ? 'AI-संचालित सेवा बुकिंग' : 'AI-powered service booking' },
-              { icon: Shield, text: lang === 'hi' ? 'सत्यापित और भरोसेमंद प्रदाता' : 'Verified & trusted providers' },
-              { icon: Star, text: lang === 'hi' ? 'हर बुकिंग पर SevaPoints कमाएं' : 'Earn SevaPoints on every booking' },
-              { icon: Users, text: lang === 'hi' ? '200+ शहरों और गांवों में उपलब्ध' : 'Available in 200+ cities & villages' },
+              { icon: Zap, text: lang === 'hi' ? 'हिंदी और अंग्रेज़ी AI सहायक' : 'Hindi and English AI assistant' },
+              { icon: Shield, text: lang === 'hi' ? 'सुरक्षित खाता और सत्र' : 'Secure account sessions' },
+              { icon: Star, text: lang === 'hi' ? 'पूरी बुकिंग पर सेवा पॉइंट' : 'SevaPoints for completed bookings' },
+              { icon: CheckCircle, text: lang === 'hi' ? 'ग्रामीण और शहरी सेवाएं' : 'Rural and urban services' },
             ].map(({ icon: Icon, text }) => (
               <div key={text} className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center shrink-0">
@@ -212,15 +213,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Bottom stats */}
-        <div className="relative z-10 flex gap-6">
-          {[['50K+', lang === 'hi' ? 'प्रदाता' : 'Providers'], ['4.8★', lang === 'hi' ? 'रेटिंग' : 'Rating'], ['200+', lang === 'hi' ? 'शहर' : 'Cities']].map(([val, label]) => (
-            <div key={label}>
-              <p className="text-white font-black text-xl">{val}</p>
-              <p className="text-white/60 text-xs">{label}</p>
-            </div>
-          ))}
-        </div>
+        <div className="relative z-10 flex flex-wrap gap-2">{[lang === 'hi' ? 'हिंदी' : 'Hindi', lang === 'hi' ? 'अंग्रेज़ी' : 'English', lang === 'hi' ? 'ग्रामीण + शहरी' : 'Rural + Urban'].map(item => <span key={item} className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/85">{item}</span>)}</div>
       </div>
 
       {/* ── Right Panel ────────────────────────────────────────────────────── */}
@@ -247,7 +240,7 @@ export default function LoginPage() {
         </div>
 
         <div className="w-full max-w-sm">
-          <PhotoBanner scene="urban" alt="Animated city skyline" caption="Urban and rural services, one account" className="mb-5 lg:hidden" />
+          <PhotoBanner scene="urban" alt="People and services in a city neighborhood" caption="Urban and rural services, one account" className="mb-5 lg:hidden" />
           {/* Lang toggle */}
           <div className="flex justify-end mb-6">
             <button

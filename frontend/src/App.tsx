@@ -5,6 +5,7 @@ import CookieBannerErrorBoundary from '@/components/CookieBannerErrorBoundary';
 import RootLayout from './layouts/RootLayout';
 import Spinner from './components/Spinner';
 import { routes } from './routes';
+import RouteError from './components/RouteError';
 
 const CookieBanner = lazy(() =>
   import('@/components/CookieBanner').catch((error) => {
@@ -23,6 +24,7 @@ const SpinnerFallback = () => (
 const router = createBrowserRouter([
   {
     path: '/',
+    errorElement: <RouteError />,
     element: (
       <Suspense fallback={<SpinnerFallback />}>
         <RootLayout>

@@ -522,7 +522,7 @@ export default function AIAssistantPage() {
 
       {/* ── Main Layout ───────────────────────────────────────────────────── */}
       <div className="container mx-auto w-full max-w-6xl px-4 pt-4">
-        <PhotoBanner scene="voice" alt="Voice assistant" caption="Speak in Hindi or English" />
+        <PhotoBanner scene="voice" alt="Person using a phone to find local services" caption="Speak in Hindi or English" />
       </div>
       <div className="flex-1 container mx-auto px-4 py-6 flex gap-6 max-w-6xl">
 

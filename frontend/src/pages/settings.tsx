@@ -3,8 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 import {
   User, Bell, Globe, Palette, CreditCard,
-  ChevronRight, Check, Sun, Moon, Smartphone,
-  Lock, Eye, EyeOff, Save,
+  ChevronRight, Check, Sun, Moon, Save,
   LayoutDashboard, ShoppingBag, MapPin, Gift, Zap, Building2,
   Info
 } from 'lucide-react';
@@ -18,10 +17,10 @@ type Section = 'profile' | 'notifications' | 'language' | 'appearance' | 'paymen
 
 // ─── Section Nav ──────────────────────────────────────────────────────────────
 const sections: { id: Section; label: string; labelHi: string; icon: React.ReactNode; desc: string; descHi: string }[] = [
-  { id: 'profile',       label: 'Profile',        labelHi: 'प्रोफ़ाइल',      icon: <User size={16} />,       desc: 'Name, photo, contact info',          descHi: 'नाम, फोटो, संपर्क जानकारी' },
+  { id: 'profile',       label: 'Profile',        labelHi: 'प्रोफ़ाइल',      icon: <User size={16} />,       desc: 'Name and contact info',              descHi: 'नाम और संपर्क जानकारी' },
   { id: 'notifications', label: 'Notifications',  labelHi: 'सूचनाएं',        icon: <Bell size={16} />,       desc: 'Alerts, reminders, updates',         descHi: 'अलर्ट, रिमाइंडर, अपडेट' },
-  { id: 'language',      label: 'Language',       labelHi: 'भाषा',           icon: <Globe size={16} />,      desc: 'App language & region',              descHi: 'ऐप भाषा और क्षेत्र' },
-  { id: 'appearance',    label: 'Appearance',     labelHi: 'दिखावट',         icon: <Palette size={16} />,    desc: 'Theme, font size, display',          descHi: 'थीम, फ़ॉन्ट साइज़, डिस्प्ले' },
+  { id: 'language',      label: 'Language',       labelHi: 'भाषा',           icon: <Globe size={16} />,      desc: 'App language',                       descHi: 'ऐप भाषा' },
+  { id: 'appearance',    label: 'Appearance',     labelHi: 'दिखावट',         icon: <Palette size={16} />,    desc: 'Color theme',                        descHi: 'रंग थीम' },
   { id: 'payments',      label: 'Bookings & payments', labelHi: 'बुकिंग और भुगतान', icon: <CreditCard size={16} />, desc: 'Booking history and payment status', descHi: 'बुकिंग इतिहास और भुगतान स्थिति' },
 ];
 
@@ -264,173 +263,6 @@ function AppearanceSection({ lang }: { lang: Lang }) {
   );
 }
 
-// ─── Security Section ─────────────────────────────────────────────────────────
-export function SecuritySection({ lang }: { lang: Lang }) {
-  const t = (en: string, hi: string) => lang === 'hi' ? hi : en;
-  const [showPass, setShowPass] = useState(false);
-  const [twoFA, setTwoFA] = useState(true);
-  const [biometric, setBiometric] = useState(false);
-  const [loginAlerts, setLoginAlerts] = useState(true);
-
-  return (
-    <div className="space-y-4">
-      <SectionCard title={t('Change Password', 'पासवर्ड बदलें')}>
-        <div className="space-y-3">
-          {[
-            { label: t('Current Password', 'वर्तमान पासवर्ड'), placeholder: '••••••••' },
-            { label: t('New Password', 'नया पासवर्ड'), placeholder: t('Min 8 characters', 'न्यूनतम 8 अक्षर') },
-            { label: t('Confirm New Password', 'नया पासवर्ड पुष्टि करें'), placeholder: '••••••••' },
-          ].map((field, i) => (
-            <div key={i}>
-              <label className="text-xs font-semibold text-muted-foreground mb-1 block">{field.label}</label>
-              <div className="relative">
-                <input
-                  type={showPass ? 'text' : 'password'}
-                  placeholder={field.placeholder}
-                  className="w-full px-3 py-2 pr-10 rounded-xl border border-border bg-muted/40 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                />
-                {i === 0 && (
-                  <button onClick={() => setShowPass(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                    {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-          <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-all">
-            <Lock size={14} /> {t('Update Password', 'पासवर्ड अपडेट करें')}
-          </button>
-        </div>
-      </SectionCard>
-
-      <SectionCard title={t('Security Options', 'सुरक्षा विकल्प')}>
-        <SettingRow label={t('Two-Factor Authentication', 'दो-चरण प्रमाणीकरण')} desc={t('Extra security via OTP on login', 'लॉगिन पर OTP द्वारा अतिरिक्त सुरक्षा')}>
-          <Toggle on={twoFA} onChange={setTwoFA} />
-        </SettingRow>
-        <SettingRow label={t('Biometric Login', 'बायोमेट्रिक लॉगिन')} desc={t('Use fingerprint or face ID', 'फिंगरप्रिंट या फेस ID का उपयोग करें')}>
-          <Toggle on={biometric} onChange={setBiometric} />
-        </SettingRow>
-        <SettingRow label={t('Login Alerts', 'लॉगिन अलर्ट')} desc={t('Get notified of new sign-ins', 'नए साइन-इन की सूचना पाएं')}>
-          <Toggle on={loginAlerts} onChange={setLoginAlerts} />
-        </SettingRow>
-      </SectionCard>
-
-      <SectionCard title={t('Active Sessions', 'सक्रिय सत्र')}>
-        {[
-          { device: t('Chrome · Windows 11', 'Chrome · Windows 11'), location: t('New Delhi, IN', 'नई दिल्ली, IN'), time: t('Now (current)', 'अभी (वर्तमान)'), current: true },
-          { device: t('SevaSetu App · Android', 'SevaSetu App · Android'), location: t('New Delhi, IN', 'नई दिल्ली, IN'), time: '2 days ago', current: false },
-        ].map((session, i) => (
-          <div key={i} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/50">
-            <div className="flex items-center gap-3">
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${session.current ? 'bg-green-100 text-green-600' : 'bg-muted text-muted-foreground'}`}>
-                <Smartphone size={15} />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-foreground">{session.device}</p>
-                <p className="text-[10px] text-muted-foreground">{session.location} · {session.time}</p>
-              </div>
-            </div>
-            {session.current
-              ? <span className="text-[10px] font-bold text-green-600 bg-green-100 dark:bg-green-950/30 px-2 py-0.5 rounded-full">{t('Active', 'सक्रिय')}</span>
-              : <button className="text-[10px] font-bold text-red-500 hover:underline">{t('Revoke', 'रद्द करें')}</button>
-            }
-          </div>
-        ))}
-      </SectionCard>
-    </div>
-  );
-}
-
-// ─── Payments Section ─────────────────────────────────────────────────────────
-export function PaymentsSection({ lang }: { lang: Lang }) {
-  const t = (en: string, hi: string) => lang === 'hi' ? hi : en;
-
-  return (
-    <div className="space-y-4">
-      <SectionCard title={t('Wallet Balance', 'वॉलेट बैलेंस')}>
-        <div className="flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-primary to-primary/80 text-white">
-          <div>
-            <p className="text-white/70 text-xs">{t('Available Balance', 'उपलब्ध बैलेंस')}</p>
-            <p className="text-3xl font-black">₹250.00</p>
-            <p className="text-white/60 text-[10px] mt-0.5">{t('Last added: ₹500 on Apr 1', 'अंतिम जोड़: ₹500 on Apr 1')}</p>
-          </div>
-          <button className="bg-white text-primary text-xs font-bold px-4 py-2 rounded-full hover:bg-white/90 transition-all">
-            {t('Add Money', 'पैसे जोड़ें')}
-          </button>
-        </div>
-      </SectionCard>
-
-      <SectionCard title={t('Saved UPI IDs', 'सहेजे UPI ID')} desc={t('Manage your UPI payment methods', 'अपने UPI भुगतान तरीके प्रबंधित करें')}>
-        {[
-          { id: 'priya@gpay', app: 'Google Pay', icon: '🟢', primary: true },
-          { id: 'priya@paytm', app: 'Paytm', icon: '🔵', primary: false },
-        ].map((upi, i) => (
-          <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-border">
-            <div className="flex items-center gap-3">
-              <span className="text-xl">{upi.icon}</span>
-              <div>
-                <p className="text-sm font-bold text-foreground">{upi.id}</p>
-                <p className="text-xs text-muted-foreground">{upi.app}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {upi.primary && <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{t('Primary', 'प्राथमिक')}</span>}
-              <button className="text-xs text-red-500 hover:underline font-semibold">{t('Remove', 'हटाएं')}</button>
-            </div>
-          </div>
-        ))}
-        <button className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-border text-sm text-muted-foreground hover:border-primary/40 hover:text-primary transition-all font-semibold">
-          + {t('Add UPI ID', 'UPI ID जोड़ें')}
-        </button>
-      </SectionCard>
-
-      <SectionCard title={t('Saved Cards', 'सहेजे कार्ड')}>
-        {[
-          { last4: '4242', brand: 'Visa', expiry: '12/26', icon: '💳' },
-        ].map((card, i) => (
-          <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-border">
-            <div className="flex items-center gap-3">
-              <span className="text-xl">{card.icon}</span>
-              <div>
-                <p className="text-sm font-bold text-foreground">{card.brand} •••• {card.last4}</p>
-                <p className="text-xs text-muted-foreground">{t('Expires', 'समाप्त')} {card.expiry}</p>
-              </div>
-            </div>
-            <button className="text-xs text-red-500 hover:underline font-semibold">{t('Remove', 'हटाएं')}</button>
-          </div>
-        ))}
-        <button className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-border text-sm text-muted-foreground hover:border-primary/40 hover:text-primary transition-all font-semibold">
-          + {t('Add Card', 'कार्ड जोड़ें')}
-        </button>
-      </SectionCard>
-
-      <SectionCard title={t('Transaction History', 'लेनदेन इतिहास')}>
-        {[
-          { desc: t('Plumbing Repair', 'प्लंबिंग मरम्मत'), date: 'Apr 4', amount: -350, icon: '🔧' },
-          { desc: t('Wallet Top-up', 'वॉलेट टॉप-अप'), date: 'Apr 1', amount: +500, icon: '💰' },
-          { desc: t('House Cleaning', 'घर की सफाई'), date: 'Mar 28', amount: -500, icon: '🧹' },
-        ].map((tx, i) => (
-          <div key={i} className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-muted flex items-center justify-center text-base">{tx.icon}</div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">{tx.desc}</p>
-                <p className="text-xs text-muted-foreground">{tx.date}</p>
-              </div>
-            </div>
-            <p className={`text-sm font-black ${tx.amount > 0 ? 'text-green-600' : 'text-foreground'}`}>
-              {tx.amount > 0 ? '+' : ''}₹{Math.abs(tx.amount)}
-            </p>
-          </div>
-        ))}
-        <Link to="/payment" className="text-xs text-primary font-semibold hover:underline flex items-center gap-1">
-          {t('View all transactions', 'सभी लेनदेन देखें')} <ChevronRight size={12} />
-        </Link>
-      </SectionCard>
-    </div>
-  );
-}
-
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function SettingsPage() {
   const [lang, setLang] = useAppLanguage();
@@ -479,7 +311,7 @@ export default function SettingsPage() {
             {lang === 'hi' ? 'अपना अकाउंट और प्राथमिकताएं प्रबंधित करें' : 'Manage your account and preferences'}
           </p>
         </div>
-        <PhotoBanner scene="urban" alt="Animated city skyline" caption="Your SevaSetu account" className="mb-6" />
+        <PhotoBanner scene="urban" alt="People and services in an urban community" caption="Your SevaSetu account" className="mb-6" />
 
         <div className="flex gap-5 items-start">
 

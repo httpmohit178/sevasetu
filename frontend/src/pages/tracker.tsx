@@ -78,7 +78,14 @@ export default function TrackerPage() {
   const shareLocation = () => {
     if (!navigator.geolocation) { setError(lang === 'hi' ? 'इस डिवाइस पर लोकेशन उपलब्ध नहीं है।' : 'Location is not available on this device.'); return; }
     navigator.geolocation.getCurrentPosition(
-      ({ coords }) => { setCustomerLocation({ latitude: coords.latitude, longitude: coords.longitude }); setError(''); },
+      async ({ coords }) => {
+        const point = { latitude: coords.latitude, longitude: coords.longitude };
+        if (!active) { setError(lang === 'hi' ? 'पहले एक बुकिंग चुनें।' : 'Select a booking before sharing your location.'); return; }
+        try {
+          await apiRequest(`/bookings/${active.id}/customer-location`, { method: 'POST', body: JSON.stringify(point) });
+          setCustomerLocation(point); setError('');
+        } catch (e) { setError(e instanceof Error ? e.message : (lang === 'hi' ? 'लोकेशन साझा नहीं हो सकी।' : 'Could not share your location.')); }
+      },
       (e) => setError(e.code === e.PERMISSION_DENIED
         ? (lang === 'hi' ? 'लोकेशन की अनुमति नहीं मिली। ब्राउज़र सेटिंग्स में अनुमति दें।' : 'Location permission was denied. Allow it in your browser settings.')
         : (lang === 'hi' ? 'लोकेशन नहीं मिल सकी। फिर से कोशिश करें।' : 'Could not get your location. Please try again.')),
@@ -112,7 +119,7 @@ export default function TrackerPage() {
         </div>
       </div>
     </header>
-    <div className="container mx-auto max-w-5xl px-4 pt-5"><PhotoBanner scene="gps" alt="Animated map pin for live booking tracking" caption="Live GPS tracking for your booking" /></div>
+    <div className="container mx-auto max-w-5xl px-4 pt-5"><PhotoBanner scene="gps" alt="Street view representing local provider directions" caption="Live GPS tracking for your booking" /></div>
     <main className="container mx-auto max-w-5xl px-4 py-6">
       {!hasSession && <div role="status" className="mb-5 rounded-2xl border border-primary/20 bg-primary/5 p-6 text-center"><h2 className="font-bold">{t('Sign in to see your bookings', 'अपनी बुकिंग देखने के लिए साइन इन करें')}</h2><p className="my-2 text-sm text-muted-foreground">{t('You can browse services and schemes without an account. Sign in to view booking details and live provider locations.', 'आप बिना खाते के सेवाएं और योजनाएं देख सकते हैं। बुकिंग और लाइव लोकेशन देखने के लिए साइन इन करें।')}</p><Link to="/login" state={{ from: '/tracker' }} className="inline-block rounded-full bg-primary px-5 py-2 text-sm font-bold text-white">{t('Sign in', 'साइन इन')}</Link></div>}
       {error && hasSession && <p role="alert" className="mb-4 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800">{error}</p>}

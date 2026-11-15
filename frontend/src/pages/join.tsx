@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight, ArrowLeft, CheckCircle, Shield, Zap,
-  Phone, Globe, Star, TrendingUp, Users, Briefcase,
-  MapPin, ChevronDown
+  Phone, Globe, Briefcase,
+  MapPin, ChevronDown, Clock
 } from 'lucide-react';
 import { apiRequest } from '../lib/api-client';
 import { useAppLanguage } from '../hooks/useAppLanguage';
@@ -127,7 +127,7 @@ export default function JoinPage() {
     <div className="min-h-screen bg-background flex">
       {submitError && <div role="alert" className="fixed top-4 left-1/2 z-[100] -translate-x-1/2 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-lg">{submitError}</div>}
       <title>Join as Provider – SevaSetu | Earn with Your Skills</title>
-      <meta name="description" content="Join SevaSetu as a service provider. Earn ₹500–2000/day, get verified, and connect with customers across India." />
+      <meta name="description" content="Join SevaSetu as a local service provider. List your skills, manage availability, accept service requests, and update job status." />
 
       {/* ── Left Panel ─────────────────────────────────────────────────────── */}
       <div className="hidden lg:flex lg:w-5/12 relative overflow-hidden bg-gradient-to-br from-primary via-primary/90 to-secondary flex-col justify-between p-12">
@@ -168,18 +168,16 @@ export default function JoinPage() {
             {lang === 'hi' ? 'अपने हुनर से\nकमाई करें' : 'Earn with\nYour Skills'}
           </h2>
           <p className="text-white/75 text-base mb-8">
-            {lang === 'hi'
-              ? '50,000+ प्रदाता रोज़ ₹500–2,000 कमा रहे हैं'
-              : '50,000+ providers earning ₹500–2,000 daily'}
+            {lang === 'hi' ? 'अपनी सेवाएं सूचीबद्ध करें, उपलब्धता चुनें और स्थानीय बुकिंग संभालें।' : 'List your skills, choose when you are available, and manage local service requests.'}
           </p>
 
           {/* Earnings cards */}
           <div className="grid grid-cols-2 gap-3 mb-6">
             {[
-              { label: lang === 'hi' ? 'औसत दैनिक कमाई' : 'Avg Daily Earning', value: '₹850', icon: TrendingUp },
-              { label: lang === 'hi' ? 'सक्रिय प्रदाता' : 'Active Providers', value: '50K+', icon: Users },
-              { label: lang === 'hi' ? 'औसत रेटिंग' : 'Avg Rating', value: '4.8★', icon: Star },
-              { label: lang === 'hi' ? 'शहर कवरेज' : 'City Coverage', value: '200+', icon: MapPin },
+              { label: lang === 'hi' ? 'कौशल जोड़ें' : 'Add your skills', value: '01', icon: Briefcase },
+              { label: lang === 'hi' ? 'उपलब्धता चुनें' : 'Set availability', value: '02', icon: Clock },
+              { label: lang === 'hi' ? 'बुकिंग स्वीकारें' : 'Accept a request', value: '03', icon: CheckCircle },
+              { label: lang === 'hi' ? 'काम की स्थिति साझा करें' : 'Update job status', value: '04', icon: MapPin },
             ].map(({ label, value, icon: Icon }) => (
               <div key={label} className="bg-white/10 rounded-xl p-3">
                 <Icon size={14} className="text-yellow-300 mb-1" />
@@ -192,10 +190,10 @@ export default function JoinPage() {
           {/* Benefits */}
           <div className="space-y-2">
             {[
-              lang === 'hi' ? 'मुफ्त प्रोफाइल और वेरिफिकेशन' : 'Free profile & verification',
-              lang === 'hi' ? 'सीधे बैंक में भुगतान' : 'Direct bank payments',
-              lang === 'hi' ? 'AI से ग्राहक मिलान' : 'AI-powered customer matching',
-              lang === 'hi' ? '24/7 सहायता' : '24/7 support',
+              lang === 'hi' ? 'अपनी प्रोफ़ाइल और कौशल प्रबंधित करें' : 'Manage your provider profile and skills',
+              lang === 'hi' ? 'अपनी ऑनलाइन उपलब्धता नियंत्रित करें' : 'Control your online availability',
+              lang === 'hi' ? 'बुकिंग स्थिति ग्राहकों के साथ साझा करें' : 'Keep customers updated on booking progress',
+              lang === 'hi' ? 'सक्रिय काम के दौरान GPS साझा करें' : 'Share GPS during an active job',
             ].map(b => (
               <div key={b} className="flex items-center gap-2">
                 <CheckCircle size={13} className="text-yellow-300 shrink-0" />
@@ -205,22 +203,7 @@ export default function JoinPage() {
           </div>
         </div>
 
-        {/* Testimonial */}
-        <div className="relative z-10 bg-white/10 rounded-2xl p-4">
-          <p className="text-white/85 text-sm italic mb-2">
-            "{lang === 'hi' ? 'SevaSetu से जुड़कर मेरी कमाई दोगुनी हो गई। अब घर बैठे काम मिलता है।' : 'Joining SevaSetu doubled my income. I get work from home now.'}"
-          </p>
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-yellow-400 flex items-center justify-center text-xs font-bold text-yellow-900">R</div>
-            <div>
-              <p className="text-white text-xs font-bold">Ramesh Kumar</p>
-              <p className="text-white/60 text-[10px]">{lang === 'hi' ? 'प्लंबर, दिल्ली' : 'Plumber, Delhi'}</p>
-            </div>
-            <div className="ml-auto flex">
-              {[1,2,3,4,5].map(s => <Star key={s} size={10} className="text-yellow-400 fill-yellow-400" />)}
-            </div>
-          </div>
-        </div>
+        <div className="relative z-10 rounded-2xl border border-white/15 bg-white/10 p-4"><p className="text-xs font-bold uppercase tracking-wider text-yellow-300">{lang === 'hi' ? 'साफ़ और सरल कार्यप्रवाह' : 'A clear provider workflow'}</p><p className="mt-2 text-sm leading-relaxed text-white/85">{lang === 'hi' ? 'बुकिंग का अनुरोध आएगा। आप उसे स्वीकार या अनदेखा कर सकते हैं, फिर हर चरण पर स्थिति अपडेट करें।' : 'A booking request arrives for your skills. Accept it when available, then update each job stage as work progresses.'}</p></div>
       </div>
 
       {/* ── Right Panel ────────────────────────────────────────────────────── */}
@@ -247,7 +230,7 @@ export default function JoinPage() {
         </div>
 
         <div className="w-full max-w-md">
-          <PhotoBanner scene="rural" alt="Animated village and city services" caption="Offer rural or urban services" className="mb-5" />
+          <PhotoBanner scene="rural" alt="Local farming and rural work" caption="Offer rural or urban services" className="mb-5" />
           {/* Lang toggle */}
           <div className="flex justify-end mb-4">
             <button
@@ -268,7 +251,7 @@ export default function JoinPage() {
                   {lang === 'hi' ? 'प्रदाता बनें 🙌' : 'Become a Provider 🙌'}
                 </h1>
                 <p className="text-muted-foreground text-sm mb-6">
-                  {lang === 'hi' ? 'अपने हुनर से रोज़ ₹500–2,000 कमाएं' : 'Earn ₹500–2,000 daily with your skills'}
+                  {lang === 'hi' ? 'अपने कौशल से स्थानीय सेवा अनुरोध पाएं' : 'Manage local service requests with your skills'}
                 </p>
 
                 {/* Steps preview */}

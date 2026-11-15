@@ -162,21 +162,9 @@ const services = [
   { id: "security", name: "Security", startingPrice: 499, category: "home", area: "urban" },
 ];
 const serviceHindi = { crop: "फसल सलाह", soil: "मिट्टी जांच", tractor: "ट्रैक्टर और उपकरण", dairy: "डेयरी सहायता", veterinary: "पशु चिकित्सा", pump: "पानी पंप मरम्मत", solar: "सोलर सेटअप", handicraft: "हस्तशिल्प", biogas: "बायोगैस सेवा", gardening: "बागवानी", plumbing: "प्लंबिंग", electrical: "इलेक्ट्रिकल", cleaning: "सफाई", painting: "पेंटिंग", carpentry: "बढ़ईगीरी", cooking: "खाना पकाना", tutoring: "ट्यूटरिंग", driving: "ड्राइविंग", beauty: "ब्यूटी और सैलून", ac: "AC मरम्मत", security: "सुरक्षा" };
-const demoProviders = [
-  { id: "demo-ramesh", userId: "demo-ramesh-user", name: "Ramesh Patel", phone: "+919811110001", city: "Anand", skills: ["crop", "soil", "tractor", "gardening", "pump"], area: "rural" },
-  { id: "demo-sunita", userId: "demo-sunita-user", name: "Sunita Devi", phone: "+919811110002", city: "Varanasi", skills: ["handicraft", "dairy", "cooking", "biogas"], area: "rural" },
-  { id: "demo-amit", userId: "demo-amit-user", name: "Amit Sharma", phone: "+919811110003", city: "Pune", skills: ["plumbing", "electrical", "ac", "carpentry"], area: "urban" },
-  { id: "demo-neha", userId: "demo-neha-user", name: "Neha Kapoor", phone: "+919811110004", city: "Delhi", skills: ["cleaning", "beauty", "tutoring", "security"], area: "urban" },
-  { id: "demo-imran", userId: "demo-imran-user", name: "Imran Khan", phone: "+919811110005", city: "Lucknow", skills: ["driving", "painting", "veterinary", "solar"], area: "rural" },
-];
-let seededProviders = false;
-for (const demo of demoProviders) {
-  if (!store.providers.some((item) => item.id === demo.id)) {
-    store.providers.push({ ...demo, status: "verified", online: true, experience: 4, address: demo.city, createdAt: new Date().toISOString() });
-    seededProviders = true;
-  }
-}
-if (seededProviders || store.users.length) await persist();
+const staleDemoProviders = store.providers.some((provider) => String(provider.id).startsWith("demo-"));
+store.providers = store.providers.filter((provider) => !String(provider.id).startsWith("demo-"));
+if (staleDemoProviders || store.users.length) await persist();
 function bookingView(booking, viewerId) {
   const provider = store.providers.find((item) => item.userId === booking.providerUserId);
   return { ...booking, providerName: provider?.name || null, providerPhone: provider && viewerId === booking.customerId ? provider.phone : null };
@@ -200,6 +188,10 @@ const server = createServer(async (req, res) => {
     }
     if (req.method === "GET" && path === "/api/services") {
       return json(res, 200, { services: services.map((item) => ({ ...item, nameHi: serviceHindi[item.id], onlineProviders: store.providers.filter((provider) => provider.online && provider.skills.includes(item.id)).length })) });
+    }
+    if (req.method === "GET" && path === "/api/platform/summary") {
+      const onlineProviders = store.providers.filter((provider) => provider.online);
+      return json(res, 200, { serviceCount: services.length, ruralServiceCount: services.filter((item) => item.area === "rural").length, urbanServiceCount: services.filter((item) => item.area === "urban").length, onlineProviderCount: onlineProviders.length, activeBookingCount: store.bookings.filter((item) => !["completed", "cancelled"].includes(item.status)).length, completedBookingCount: store.bookings.filter((item) => item.status === "completed").length, updatedAt: new Date().toISOString() });
     }
     if (req.method === "POST" && path === "/api/ai/reply") {
       const data = await body(req);

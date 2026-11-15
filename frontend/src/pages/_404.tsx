@@ -13,7 +13,7 @@ export default function NotFoundPage() {
     <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(to bottom right, hsl(var(--primary)), hsl(var(--secondary)))' }}>
     <div className="container mx-auto px-4 max-w-2xl text-center">
       <div className="space-y-8">
-        <PhotoBanner scene="urban" alt="Animated city skyline" caption="This page is not on the map" className="mx-auto max-w-xl" />
+        <PhotoBanner scene="urban" alt="A city neighborhood" caption="This page is not on the map" className="mx-auto max-w-xl" />
         <div className="space-y-4">
           <h1 className="text-6xl font-bold text-white/90">404</h1>
           <h2 className="text-2xl font-semibold text-white/90">

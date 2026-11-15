@@ -23,5 +23,6 @@
     },
     "baseUrl": "."
   },
-  "include": ["src", "vite.config.ts", "plugins"]
+  "include": ["src", "vite.config.ts", "plugins"],
+  "exclude": ["src/test"]
 }

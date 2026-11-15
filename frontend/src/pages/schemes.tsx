@@ -457,7 +457,7 @@ function ApplyModal({ scheme, lang, onClose }: { scheme: typeof schemes[0]; lang
 export default function SchemesPage() {
   const [lang, setLang] = useAppLanguage();
   const [activeCategory, setActiveCategory] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(() => new URLSearchParams(window.location.search).get('search') || '');
   const [applyScheme, setApplyScheme] = useState<typeof schemes[0] | null>(null);
 
   const filtered = useMemo(() => {
@@ -487,7 +487,7 @@ export default function SchemesPage() {
         <div className="absolute bottom-0 left-0 w-72 h-72 rounded-full bg-white/5 translate-y-1/2 -translate-x-1/3 pointer-events-none" />
 
         <div className="container mx-auto px-4 relative z-10">
-          <PhotoBanner scene="agri" alt="Animated farmland" caption="Schemes for farms, homes, and health" className="mb-7" />
+          <PhotoBanner scene="agri" alt="Agricultural fields and crops" caption="Schemes for farms, homes, and health" className="mb-7" />
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}

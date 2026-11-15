@@ -5,22 +5,23 @@ import { SmartImage } from '../components/ui/smart-image';
 import { imageSources } from '../lib/image-sources';
 import { useVoiceInput } from '../hooks/useVoiceInput';
 import { useAppLanguage } from '../hooks/useAppLanguage';
+import { apiRequest } from '../lib/api-client';
 import {
-  Mic, MicOff, Search, ArrowRight, Star, MapPin, Shield, Zap, ChevronRight,
+  Mic, MicOff, Search, ArrowRight, MapPin, Shield, Zap, ChevronRight, Briefcase,
   Home, Leaf, Palette, BookOpen, Truck,
-  MessageCircle, Globe, Award, TrendingUp, Users, CheckCircle, Phone, Utensils, Scissors
+  Globe, Users, CheckCircle, Phone, Utensils, Scissors
 } from 'lucide-react';
 
 // ─── Language Context ────────────────────────────────────────────────────────
 const t = {
   en: {
-    heroTitle: 'Connecting Bharat',
-    heroSubtitle: 'गांव से शहर तक',
-    heroDesc: 'AI-powered services for every Indian — from the smallest village to the biggest city.',
+    heroTitle: 'Local help, from village to city.',
+    heroSubtitle: 'One trusted place to get things done.',
+    heroDesc: 'Find farm support, home repairs, learning, and everyday services in one simple marketplace.',
     bookService: 'Book a Service',
     joinProvider: 'Join as Provider',
     voicePlaceholder: 'Search by voice / आवाज़ से खोजें...',
-    stats: ['50,000+ Providers', '200+ Cities & Villages', '4.8★ Rating'],
+    stats: ['Services in the catalogue', 'Rural services', 'Urban services'],
     servicesTitle: 'Our Services',
     servicesSubtitle: 'Everything you need, right where you are',
     howTitle: 'How SevaSetu Works',
@@ -31,21 +32,21 @@ const t = {
     schemesSubtitle: 'Know Your Benefits — सरकारी योजनाओं का लाभ उठाएं',
     checkEligibility: 'Check Eligibility with AI',
     providerTitle: 'Empowering India\'s Workforce',
-    providerSubtitle: 'Join 50,000+ providers earning with SevaSetu',
+    providerSubtitle: 'List your skills and manage service requests in your area.',
     joinNow: 'Join as Provider',
     ctaTitle: "India's Services, Now at Your Fingertips",
     ctaSubtitle: 'Book trusted local services in seconds — in Hindi or English',
     ctaBook: 'Book a Service',
-    ctaApp: 'Download App (PWA)',
+    ctaApp: 'Talk to the AI assistant',
   },
   hi: {
-    heroTitle: 'भारत को जोड़ता है',
-    heroSubtitle: 'गांव से शहर तक',
-    heroDesc: 'हर भारतीय के लिए AI-संचालित सेवाएं — सबसे छोटे गांव से लेकर सबसे बड़े शहर तक।',
+    heroTitle: 'गांव से शहर तक, भरोसेमंद सेवा।',
+    heroSubtitle: 'ज़रूरत की मदद, एक ही जगह।',
+    heroDesc: 'खेती, घर की मरम्मत, पढ़ाई और रोज़मर्रा की सेवाएं एक आसान बाज़ार में खोजें।',
     bookService: 'सेवा बुक करें',
     joinProvider: 'प्रदाता बनें',
     voicePlaceholder: 'आवाज़ से खोजें / Search by voice...',
-    stats: ['50,000+ प्रदाता', '200+ शहर और गांव', '4.8★ रेटिंग'],
+    stats: ['सूची में सेवाएं', 'ग्रामीण सेवाएं', 'शहरी सेवाएं'],
     servicesTitle: 'हमारी सेवाएं',
     servicesSubtitle: 'जो चाहिए, जहां चाहिए',
     howTitle: 'SevaSetu कैसे काम करता है',
@@ -56,12 +57,12 @@ const t = {
     schemesSubtitle: 'अपने अधिकार जानें — Know Your Benefits',
     checkEligibility: 'AI से पात्रता जांचें',
     providerTitle: 'भारत के कार्यबल को सशक्त बनाना',
-    providerSubtitle: '50,000+ प्रदाताओं के साथ कमाई शुरू करें',
+    providerSubtitle: 'अपने कौशल सूचीबद्ध करें और अपने क्षेत्र के सेवा अनुरोध संभालें।',
     joinNow: 'प्रदाता बनें',
     ctaTitle: 'भारत की सेवाएं, अब आपकी उंगलियों पर',
     ctaSubtitle: 'हिंदी या अंग्रेजी में — विश्वसनीय स्थानीय सेवाएं सेकंडों में बुक करें',
     ctaBook: 'सेवा बुक करें',
-    ctaApp: 'ऐप डाउनलोड करें (PWA)',
+    ctaApp: 'AI सहायक से बात करें',
   },
 };
 
@@ -176,12 +177,25 @@ export default function HomePage() {
   const navigate = useNavigate();
   const [lang, setLang] = useAppLanguage();
   const [searchQuery, setSearchQuery] = useState('');
+  const [platformSummary, setPlatformSummary] = useState<{ serviceCount: number; ruralServiceCount: number; urbanServiceCount: number; onlineProviderCount: number } | null>(null);
+  const [apiConnected, setApiConnected] = useState<boolean | null>(null);
   const { voiceState, isSupported, startListening, stopListening } = useVoiceInput({
     lang,
     onResult: (text) => { setSearchQuery(text); navigate(`/services?search=${encodeURIComponent(text)}`); },
   });
   const isListening = voiceState === 'listening';
   const tx = t[lang];
+  useEffect(() => {
+    let active = true;
+    apiRequest<typeof platformSummary & {}>('/platform/summary')
+      .then((summary) => { if (active) { setPlatformSummary(summary); setApiConnected(true); } })
+      .catch(() => { if (active) setApiConnected(false); });
+    return () => { active = false; };
+  }, []);
+  const submitSearch = () => {
+    const query = searchQuery.trim();
+    if (query) navigate(`/services?search=${encodeURIComponent(query)}`);
+  };
 
   const fadeUp = {
     hidden: { opacity: 0, y: 30 },
@@ -205,13 +219,13 @@ export default function HomePage() {
         <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-orange-50/60 to-transparent pointer-events-none" />
 
         <div className="container mx-auto px-4 py-16 relative z-10">
-          <div className="grid lg:grid-cols-3 gap-8 items-center">
+          <div className="grid lg:grid-cols-12 gap-7 items-center">
             {/* Left — Rural Visual */}
             <motion.div
               initial={{ opacity: 0, x: -50 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.7, ease: 'easeOut' }}
-              className="hidden lg:block"
+              className="hidden lg:col-span-3 lg:block"
             >
               <div className="relative rounded-3xl overflow-hidden shadow-2xl h-[420px]">
                 <SmartImage src={imageSources.rural} alt="Rural farm with a grain silo and fields at sunset" className="h-full w-full" loading="eager" />
@@ -225,13 +239,13 @@ export default function HomePage() {
             </motion.div>
 
             {/* Center — Main Content */}
-            <div className="lg:col-span-1 text-center">
+            <div className="lg:col-span-6 text-center lg:text-left">
               {/* Language Toggle */}
               <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4 }}
-                className="flex justify-center mb-6"
+                className="flex justify-center lg:justify-start mb-6"
               >
                 <button
                   onClick={() => setLang(lang === 'en' ? 'hi' : 'en')}
@@ -249,7 +263,7 @@ export default function HomePage() {
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ duration: 0.5, delay: 0.2, type: 'spring' }}
-                className="flex justify-center mb-4"
+                className="flex justify-center lg:justify-start mb-4"
               >
                 <div className="w-16 h-16 rounded-2xl bg-primary shadow-lg shadow-primary/30 flex items-center justify-center">
                   <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
@@ -285,7 +299,7 @@ export default function HomePage() {
                 <motion.p
                   variants={fadeUp}
                   transition={{ duration: 0.5 }}
-                  className="text-muted-foreground text-sm md:text-base leading-relaxed mb-6 max-w-sm mx-auto"
+                  className="text-muted-foreground text-sm md:text-base leading-relaxed mb-6 max-w-lg mx-auto lg:mx-0"
                 >
                   {tx.heroDesc}
                 </motion.p>
@@ -294,7 +308,7 @@ export default function HomePage() {
                 <motion.div
                   variants={fadeUp}
                   transition={{ duration: 0.5 }}
-                  className="flex flex-col sm:flex-row gap-3 justify-center mb-6"
+                  className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-6"
                 >
                   <Link
                     to="/services"
@@ -315,7 +329,7 @@ export default function HomePage() {
                 <motion.div
                   variants={fadeUp}
                   transition={{ duration: 0.5 }}
-                  className="relative max-w-sm mx-auto"
+                  className="relative max-w-lg mx-auto lg:mx-0"
                 >
                   <div className="flex items-center gap-2 bg-white rounded-full border-2 border-border shadow-md px-4 py-2.5 focus-within:border-primary transition-colors">
                     <Search size={16} className="text-muted-foreground shrink-0" />
@@ -323,6 +337,7 @@ export default function HomePage() {
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={(event) => { if (event.key === 'Enter') submitSearch(); }}
                       placeholder={tx.voicePlaceholder}
                       className="flex-1 text-sm bg-transparent outline-none text-foreground placeholder:text-muted-foreground/60"
                     />
@@ -338,6 +353,7 @@ export default function HomePage() {
                     >
                       {isListening ? <MicOff size={14} /> : <Mic size={14} />}
                     </button>
+                    <button type="button" onClick={submitSearch} disabled={!searchQuery.trim()} aria-label={lang === 'hi' ? 'सेवाएं खोजें' : 'Search services'} className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-secondary text-white transition-colors hover:bg-secondary/90 disabled:opacity-40"><ArrowRight size={14} /></button>
                   </div>
                   {isListening && (
                     <p className="text-xs text-red-500 text-center mt-1 animate-pulse">
@@ -354,7 +370,7 @@ export default function HomePage() {
               initial={{ opacity: 0, x: 50 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.7, ease: 'easeOut' }}
-              className="hidden lg:block"
+              className="hidden lg:col-span-3 lg:block"
             >
               <div className="relative rounded-3xl overflow-hidden shadow-2xl h-[420px]">
                 <SmartImage src={imageSources.urban} alt="Four colleagues collaborating around a laptop in a modern office" className="h-full w-full" loading="eager" />
@@ -376,19 +392,22 @@ export default function HomePage() {
             className="mt-12 grid grid-cols-3 gap-4 max-w-2xl mx-auto"
           >
             {[
-              { value: 50000, suffix: '+', label: lang === 'hi' ? 'प्रदाता' : 'Providers', icon: Users },
-              { value: 200, suffix: '+', label: lang === 'hi' ? 'शहर और गांव' : 'Cities & Villages', icon: MapPin },
-              { value: 4.8, suffix: '★', label: lang === 'hi' ? 'रेटिंग' : 'Rating', icon: Star },
+              { value: platformSummary?.serviceCount ?? 21, label: lang === 'hi' ? 'सूची में सेवाएं' : 'Services in catalogue', icon: Zap },
+              { value: platformSummary?.ruralServiceCount ?? 10, label: lang === 'hi' ? 'ग्रामीण सेवाएं' : 'Rural services', icon: Leaf },
+              { value: platformSummary?.urbanServiceCount ?? 11, label: lang === 'hi' ? 'शहरी सेवाएं' : 'Urban services', icon: Home },
             ].map((stat, i) => (
               <div key={i} className="text-center bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-border">
                 <p className="text-2xl font-bold text-primary" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                  {i === 2 ? stat.value : <AnimatedCounter target={stat.value} suffix={stat.suffix} />}
-                  {i === 2 && stat.suffix}
+                  <AnimatedCounter target={stat.value} />
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
               </div>
             ))}
           </motion.div>
+          <div className="mx-auto mt-4 flex max-w-2xl flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+            <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 ${apiConnected ? 'bg-emerald-100 text-emerald-800' : apiConnected === false ? 'bg-amber-100 text-amber-900' : 'bg-white/70'}`}><span className={`h-2 w-2 rounded-full ${apiConnected ? 'bg-emerald-500' : apiConnected === false ? 'bg-amber-500' : 'animate-pulse bg-slate-400'}`} />{apiConnected ? (lang === 'hi' ? 'लाइव सेवा API जुड़ा है' : 'Live service API connected') : apiConnected === false ? (lang === 'hi' ? 'डेमो कैटलॉग • API ऑफ़लाइन' : 'Demo catalogue • API offline') : (lang === 'hi' ? 'सेवा API जांच रहे हैं…' : 'Checking service API…')}</span>
+            {platformSummary && <span>{platformSummary.onlineProviderCount} {lang === 'hi' ? 'प्रदाता ऑनलाइन' : 'providers online'}</span>}
+          </div>
         </div>
       </section>
 
@@ -428,10 +447,10 @@ export default function HomePage() {
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-3 bg-white/80 shadow-sm ${isLarge ? 'w-14 h-14' : ''}`}>
                     <Icon size={isLarge ? 26 : 22} />
                   </div>
-                  <h3 className={`font-bold text-gray-800 leading-tight ${isLarge ? 'text-lg' : 'text-sm'}`}>
+                  <h3 className={`font-bold text-foreground leading-tight ${isLarge ? 'text-lg' : 'text-sm'}`}>
                     {lang === 'hi' ? service.labelHi : service.label}
                   </h3>
-                  <p className="text-xs text-gray-500 mt-1">{lang === 'hi' ? 'सेवाएं देखें' : 'Browse services'}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{lang === 'hi' ? 'सेवाएं देखें' : 'Browse services'}</p>
                   <div className="mt-3 flex items-center gap-1 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
                     {lang === 'hi' ? 'देखें' : 'Explore'} <ChevronRight size={12} />
                   </div>
@@ -473,7 +492,7 @@ export default function HomePage() {
                 step: '02',
                 icon: Users,
                 title: lang === 'hi' ? 'प्रदाता चुनें' : 'Choose Provider',
-                desc: lang === 'hi' ? 'रेटिंग, समीक्षा और स्थान के आधार पर सर्वश्रेष्ठ प्रदाता चुनें' : 'Pick the best provider based on ratings, reviews & location',
+                desc: lang === 'hi' ? 'अपनी ज़रूरत और स्थान के अनुसार सेवा अनुरोध भेजें' : 'Send a service request for your needs and location',
                 color: 'bg-green-100 text-green-600',
                 image: imageSources.provider,
               },
@@ -481,7 +500,7 @@ export default function HomePage() {
                 step: '03',
                 icon: CheckCircle,
                 title: lang === 'hi' ? 'बुक करें और ट्रैक करें' : 'Book & Track',
-                desc: lang === 'hi' ? 'तुरंत बुक करें और रियल-टाइम में अपनी सेवा ट्रैक करें' : 'Instantly book and track your service in real-time',
+                desc: lang === 'hi' ? 'प्रदाता के स्वीकार करने के बाद स्थिति और साझा की गई लोकेशन देखें' : 'Follow job status and shared provider location after acceptance',
                 color: 'bg-blue-100 text-blue-600',
                 image: imageSources.streets,
               },
@@ -521,167 +540,22 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── AI ASSISTANT PREVIEW ──────────────────────────────────────────── */}
+      {/* ── AI ASSISTANT ─────────────────────────────────────────────────── */}
       <section className="py-20 bg-background">
-        <div className="container mx-auto px-4">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-            >
-              <p className="text-primary font-semibold text-sm uppercase tracking-wider mb-3">AI Assistant</p>
-              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                {tx.aiTitle}
-              </h2>
-              <p className="text-muted-foreground leading-relaxed mb-6">{tx.aiSubtitle}</p>
-
-              <div className="flex flex-wrap gap-3 mb-6">
-                {[
-                  { icon: '🗣️', label: lang === 'hi' ? 'हिंदी में बात करें' : 'Speak in Hindi' },
-                  { icon: '🤖', label: lang === 'hi' ? 'AI सुझाव' : 'AI Suggestions' },
-                  { icon: '📍', label: lang === 'hi' ? 'पास के प्रदाता' : 'Nearby Providers' },
-                  { icon: '🏛️', label: lang === 'hi' ? 'योजना जानकारी' : 'Scheme Info' },
-                ].map((feat, i) => (
-                  <div key={i} className="flex items-center gap-2 bg-muted rounded-full px-3 py-1.5 text-sm font-medium text-foreground">
-                    <span>{feat.icon}</span>
-                    <span>{feat.label}</span>
-                  </div>
-                ))}
-              </div>
-
-              <Link
-                to="/assistant"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-white font-bold text-sm shadow-lg shadow-primary/30 hover:bg-primary/90 transition-all"
-              >
-                <MessageCircle size={16} />
-                {lang === 'hi' ? 'AI से बात करें' : 'Chat with AI'}
-              </Link>
-            </motion.div>
-
-            {/* Chat Mockup */}
-            <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-              className="relative"
-            >
-              <div className="bg-card rounded-3xl shadow-2xl border border-border overflow-hidden max-w-sm mx-auto">
-                {/* Chat Header */}
-                <div className="bg-primary px-4 py-3 flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
-                    <Zap size={18} className="text-white" />
-                  </div>
-                  <div>
-                    <p className="text-white font-bold text-sm">Seva AI</p>
-                    <div className="flex items-center gap-1">
-                      <div className="w-1.5 h-1.5 rounded-full bg-green-300 animate-pulse" />
-                      <p className="text-white/70 text-[10px]">{lang === 'hi' ? 'ऑनलाइन' : 'Online'}</p>
-                    </div>
-                  </div>
-                  <div className="ml-auto">
-                    <motion.button
-                      animate={{ scale: [1, 1.15, 1] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                      className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center"
-                    >
-                      <Mic size={14} className="text-white" />
-                    </motion.button>
-                  </div>
-                </div>
-
-                {/* Chat Messages */}
-                <div className="p-4 space-y-3 bg-gradient-to-b from-orange-50/30 to-background min-h-[260px]">
-                  {/* User message */}
-                  <div className="flex justify-end">
-                    <div className="bg-primary text-white rounded-2xl rounded-tr-sm px-3 py-2 max-w-[75%]">
-                      <p className="text-xs">Mujhe plumber chahiye 🔧</p>
-                      <p className="text-[9px] text-white/60 mt-0.5 text-right">10:32 AM</p>
-                    </div>
-                  </div>
-
-                  {/* AI response */}
-                  <div className="flex gap-2">
-                    <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                      <Zap size={12} className="text-primary" />
-                    </div>
-                    <div className="bg-white rounded-2xl rounded-tl-sm px-3 py-2 max-w-[80%] shadow-sm border border-border">
-                      <p className="text-xs text-foreground">Bilkul! Aapke paas <strong>3 plumbers</strong> available hain 📍</p>
-                      <p className="text-[9px] text-muted-foreground mt-0.5">10:32 AM</p>
-                    </div>
-                  </div>
-
-                  {/* Provider cards in chat */}
-                  {[
-                    { name: 'Suresh Yadav', rating: '4.9', dist: '0.8 km', price: '₹299' },
-                    { name: 'Mohan Lal', rating: '4.7', dist: '1.2 km', price: '₹249' },
-                  ].map((p, i) => (
-                    <div key={i} className="flex gap-2">
-                      <div className="w-7 h-7 shrink-0" />
-                      <div className="bg-white rounded-xl px-3 py-2 shadow-sm border border-border flex items-center gap-2 w-full">
-                        <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-xs font-bold text-orange-600">
-                          {p.name[0]}
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-xs font-bold text-foreground">{p.name}</p>
-                          <div className="flex items-center gap-1">
-                            <Star size={8} className="text-yellow-500 fill-yellow-500" />
-                            <span className="text-[9px] text-muted-foreground">{p.rating} • {p.dist}</span>
-                          </div>
-                        </div>
-                        <span className="text-xs font-bold text-primary">{p.price}</span>
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* User follow-up */}
-                  <div className="flex justify-end">
-                    <div className="bg-primary text-white rounded-2xl rounded-tr-sm px-3 py-2 max-w-[75%]">
-                      <p className="text-xs">Suresh ko book karo</p>
-                      <p className="text-[9px] text-white/60 mt-0.5 text-right">10:33 AM</p>
-                    </div>
-                  </div>
-
-                  {/* Booking confirmed */}
-                  <div className="flex gap-2">
-                    <div className="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                      <CheckCircle size={12} className="text-green-600" />
-                    </div>
-                    <div className="bg-green-50 border border-green-200 rounded-2xl rounded-tl-sm px-3 py-2 max-w-[80%]">
-                      <p className="text-xs text-green-800 font-semibold">✅ Booking Confirmed!</p>
-                      <p className="text-[9px] text-green-600 mt-0.5">Suresh will arrive at 2:00 PM</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Input bar */}
-                <div className="px-3 py-3 border-t border-border bg-background flex items-center gap-2">
-                  <input
-                    type="text"
-                    placeholder={lang === 'hi' ? 'संदेश लिखें...' : 'Type a message...'}
-                    className="flex-1 text-xs bg-muted rounded-full px-3 py-2 outline-none"
-                    readOnly
-                    aria-label={lang === 'hi' ? 'AI चैट खोलें' : 'Open AI chat'}
-                    onClick={() => navigate('/assistant')}
-                  />
-                  <button type="button" onClick={() => navigate('/assistant')} aria-label={lang === 'hi' ? 'आवाज़ सहायक खोलें' : 'Open voice assistant'} className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-                    <Mic size={13} className="text-white" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Floating badge */}
-              <motion.div
-                animate={{ y: [0, -8, 0] }}
-                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-                className="absolute -top-4 -right-4 bg-white rounded-2xl shadow-lg border border-border px-3 py-2 flex items-center gap-2"
-              >
-                <Globe size={14} className="text-primary" />
-                <span className="text-xs font-bold text-foreground">Hindi + English</span>
-              </motion.div>
-            </motion.div>
+        <div className="container mx-auto grid items-center gap-10 px-4 lg:grid-cols-2">
+          <div>
+            <p className="mb-3 text-sm font-bold uppercase tracking-wider text-primary">Seva AI</p>
+            <h2 className="mb-4 text-3xl font-black text-foreground md:text-4xl">{tx.aiTitle}</h2>
+            <p className="mb-6 max-w-xl leading-relaxed text-muted-foreground">{lang === 'hi' ? 'आवाज़ या संदेश से सेवाएं खोजें, उपलब्ध प्रदाताओं के बारे में पूछें और सरकारी योजनाओं की जानकारी समझें। बुकिंग से पहले आप विवरण की पुष्टि कर सकते हैं।' : 'Search by voice or message, ask about available providers, and understand government schemes. You review booking details before sending a request.'}</p>
+            <div className="mb-7 flex flex-wrap gap-2">{[lang === 'hi' ? 'हिंदी और अंग्रेज़ी' : 'Hindi and English', lang === 'hi' ? 'माइक से बोलें' : 'Speak with your mic', lang === 'hi' ? 'बुकिंग से जुड़ी मदद' : 'Booking assistance'].map((feature) => <span key={feature} className="rounded-full border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground">{feature}</span>)}</div>
+            <Link to="/assistant" className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 font-bold text-white shadow-lg shadow-primary/20 transition-transform hover:-translate-y-0.5">{lang === 'hi' ? 'सेवा AI खोलें' : 'Open Seva AI'} <ArrowRight size={16}/></Link>
+          </div>
+          <div className="relative overflow-hidden rounded-[2rem] border border-border bg-card p-3 shadow-xl">
+            <SmartImage src={imageSources.community} alt="People using digital services in their community" className="h-72 rounded-[1.5rem] md:h-96" />
+            <div className="absolute bottom-7 left-7 right-7 rounded-2xl border border-white/30 bg-white/90 p-4 shadow-lg backdrop-blur">
+              <p className="text-xs font-bold uppercase tracking-wider text-primary">{lang === 'hi' ? 'अपनी भाषा में पूछें' : 'Ask in your language'}</p>
+              <p className="mt-1 text-sm font-semibold text-slate-900">{lang === 'hi' ? '“मेरे गांव में फसल सलाह कौन देता है?”' : '“Who can help with crop advice near my village?”'}</p>
+            </div>
           </div>
         </div>
       </section>
@@ -710,8 +584,8 @@ export default function HomePage() {
 
           <div className="grid md:grid-cols-3 gap-5 mb-10">
             {schemes.map((scheme, i) => (
+              <Link key={scheme.name} to={`/schemes?search=${encodeURIComponent(scheme.name)}`} aria-label={`${lang === 'hi' ? scheme.nameHi : scheme.name} — ${lang === 'hi' ? 'योजना देखें' : 'View scheme'}`} className="block h-full rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2">
               <motion.div
-                key={i}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -733,6 +607,7 @@ export default function HomePage() {
                   {lang === 'hi' ? 'और जानें' : 'Learn More'} <ChevronRight size={14} />
                 </div>
               </motion.div>
+              </Link>
             ))}
           </div>
 
@@ -754,121 +629,24 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── PROVIDER SPOTLIGHT ────────────────────────────────────────────── */}
-      <section className="py-20 bg-background">
-        <div className="container mx-auto px-4">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Provider Card */}
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-              className="relative"
-            >
-              <div className="bg-card rounded-3xl overflow-hidden shadow-2xl border border-border">
-                <div className="h-64 relative overflow-hidden">
-                <SmartImage src={imageSources.artisan} alt="Woman making clay pots by hand" className="h-full w-full" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent" />
-                </div>
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h3 className="text-xl font-bold text-foreground" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                        Local Pottery Artisan
-                      </h3>
-                      <p className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
-                        <MapPin size={12} /> Traditional craft services
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1 bg-yellow-50 border border-yellow-200 rounded-full px-2 py-1">
-                      <Star size={12} className="text-yellow-500 fill-yellow-500" />
-                      <span className="text-xs font-bold text-yellow-700">4.9</span>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {['Pottery', 'Clay craft', 'Handmade ceramics'].map((skill) => (
-                      <span key={skill} className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded-full font-medium">
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-3 pt-4 border-t border-border">
-                    {[
-                      { label: lang === 'hi' ? 'बुकिंग' : 'Bookings', value: '234' },
-                      { label: lang === 'hi' ? 'कमाई' : 'Earned', value: '₹48K' },
-                      { label: lang === 'hi' ? 'समीक्षा' : 'Reviews', value: '189' },
-                    ].map((stat) => (
-                      <div key={stat.label} className="text-center">
-                        <p className="text-lg font-bold text-primary" style={{ fontFamily: 'Poppins, sans-serif' }}>{stat.value}</p>
-                        <p className="text-[10px] text-muted-foreground">{stat.label}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Verified badge */}
-              <div className="absolute -top-3 -right-3 bg-secondary text-white rounded-full px-3 py-1.5 text-xs font-bold flex items-center gap-1 shadow-lg">
-                <Shield size={12} /> {lang === 'hi' ? 'सत्यापित' : 'Verified'}
-              </div>
-            </motion.div>
-
-            {/* Right Content */}
-            <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-            >
-              <p className="text-primary font-semibold text-sm uppercase tracking-wider mb-3">
-                {lang === 'hi' ? 'प्रदाता बनें' : 'Become a Provider'}
-              </p>
-              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                {tx.providerTitle}
-              </h2>
-              <p className="text-muted-foreground leading-relaxed mb-6">{tx.providerSubtitle}</p>
-
-              {/* Benefits */}
-              <div className="space-y-4 mb-8">
-                {[
-                  { icon: TrendingUp, title: lang === 'hi' ? 'अधिक कमाई' : 'Earn More', desc: lang === 'hi' ? 'अपनी शर्तों पर काम करें और अधिक कमाएं' : 'Work on your terms and earn more than ever', color: 'text-orange-500 bg-orange-50' },
-                  { icon: Shield, title: lang === 'hi' ? 'सुरक्षित भुगतान' : 'Secure Payments', desc: lang === 'hi' ? 'समय पर और सुरक्षित भुगतान की गारंटी' : 'Guaranteed on-time and secure payments', color: 'text-green-600 bg-green-50' },
-                  { icon: Award, title: lang === 'hi' ? 'पुरस्कार और बैज' : 'Rewards & Badges', desc: lang === 'hi' ? 'शीर्ष प्रदाता बैज और विशेष लाभ पाएं' : 'Earn Top Provider badges and exclusive benefits', color: 'text-blue-500 bg-blue-50' },
-                ].map((benefit, i) => {
-                  const Icon = benefit.icon;
-                  return (
-                    <div key={i} className="flex items-start gap-4">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${benefit.color}`}>
-                        <Icon size={18} />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-foreground text-sm">{benefit.title}</h4>
-                        <p className="text-xs text-muted-foreground mt-0.5">{benefit.desc}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Testimonial */}
-              <div className="bg-muted rounded-2xl p-4 mb-6 border-l-4 border-primary">
-                <p className="text-sm text-foreground italic leading-relaxed">
-                  "{lang === 'hi' ? 'SevaSetu से जुड़कर मेरी आय दोगुनी हो गई। अब मेरे हस्तशिल्प पूरे भारत में बिकते हैं।' : 'Joining SevaSetu doubled my income. Now my handicrafts sell across India.'}"
-                </p>
-                <p className="text-xs text-muted-foreground mt-2 font-semibold">— Meena Devi, Chandauli</p>
-              </div>
-
-              <Link
-                to="/join"
-                className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-secondary text-white font-bold shadow-lg shadow-secondary/30 hover:bg-secondary/90 hover:scale-105 transition-all duration-200"
-              >
-                {tx.joinNow}
-                <ArrowRight size={16} />
-              </Link>
-            </motion.div>
+      {/* ── PROVIDER WORKSPACE ───────────────────────────────────────────── */}
+      <section className="bg-muted py-20">
+        <div className="container mx-auto grid items-center gap-10 px-4 lg:grid-cols-2">
+          <div className="relative overflow-hidden rounded-[2rem] border border-border bg-card p-3 shadow-xl">
+            <SmartImage src={imageSources.artisan} alt="A local artisan creating a handmade craft" className="h-72 rounded-[1.5rem] md:h-96" />
+            <div className="absolute bottom-7 left-7 rounded-2xl bg-emerald-950/90 px-4 py-3 text-white shadow-lg"><p className="text-xs text-white/70">SevaSetu Provider</p><p className="font-bold">{lang === 'hi' ? 'आपके कौशल, आपका कार्यक्षेत्र' : 'Your skills. Your workspace.'}</p></div>
+          </div>
+          <div>
+            <p className="mb-3 text-sm font-bold uppercase tracking-wider text-secondary">{lang === 'hi' ? 'सेवा प्रदाता कार्यक्षेत्र' : 'Provider workspace'}</p>
+            <h2 className="mb-4 text-3xl font-black text-foreground md:text-4xl">{tx.providerTitle}</h2>
+            <p className="mb-6 max-w-xl leading-relaxed text-muted-foreground">{tx.providerSubtitle}</p>
+            <div className="mb-7 grid gap-3 sm:grid-cols-2">{[
+              { icon: Briefcase, title: lang === 'hi' ? 'कौशल सूचीबद्ध करें' : 'List your skills', detail: lang === 'hi' ? 'अपने क्षेत्र की सेवाएं चुनें' : 'Choose services you offer locally' },
+              { icon: Users, title: lang === 'hi' ? 'अनुरोध पाएं' : 'Receive requests', detail: lang === 'hi' ? 'ऑनलाइन होने पर मेल खाते काम देखें' : 'See matching jobs when you are online' },
+              { icon: MapPin, title: lang === 'hi' ? 'प्रगति साझा करें' : 'Share progress', detail: lang === 'hi' ? 'बुकिंग स्थिति अपडेट करें' : 'Update customers as work progresses' },
+              { icon: Shield, title: lang === 'hi' ? 'नियंत्रण आपके पास' : 'Stay in control', detail: lang === 'hi' ? 'जब उपलब्ध हों तभी ऑनलाइन जाएं' : 'Go online only when you are available' },
+            ].map(({ icon: Icon, title, detail }) => <div key={title} className="flex gap-3 rounded-2xl border border-border bg-card p-4"><div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-secondary/10 text-secondary"><Icon size={17}/></div><div><p className="text-sm font-bold text-foreground">{title}</p><p className="mt-0.5 text-xs text-muted-foreground">{detail}</p></div></div>)}</div>
+            <Link to="/join" className="inline-flex items-center gap-2 rounded-full bg-secondary px-6 py-3 font-bold text-white shadow-lg shadow-secondary/20 transition-transform hover:-translate-y-0.5">{tx.joinNow} <ArrowRight size={16}/></Link>
           </div>
         </div>
       </section>
