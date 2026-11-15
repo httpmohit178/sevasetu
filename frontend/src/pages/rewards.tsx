@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, CalendarCheck, Gift, Lock, Star, TrendingUp, Zap } from 'lucide-react';
 import { apiRequest } from '../lib/api-client';
 import { PhotoBanner } from '../components/ui/photo-banner';
+import { useAppLanguage } from '../hooks/useAppLanguage';
 
 type Lang = 'en' | 'hi';
 type RewardEvent = { id: string; points: number; label: string; labelHi: string; createdAt: string };
+type ServiceCredit = { code: string; value: number; usedAt: string | null; createdAt: string };
 const offers = [
   { points: 100, value: 10, en: '₹10 service credit', hi: '₹10 सेवा क्रेडिट' },
   { points: 500, value: 50, en: '₹50 service credit', hi: '₹50 सेवा क्रेडिट' },
@@ -14,9 +16,10 @@ const offers = [
 ];
 
 export default function RewardsPage() {
-  const [lang, setLang] = useState<Lang>('en');
+  const [lang, setLang] = useAppLanguage();
   const [points, setPoints] = useState(0);
   const [history, setHistory] = useState<RewardEvent[]>([]);
+  const [serviceCredits, setServiceCredits] = useState<ServiceCredit[]>([]);
   const [lastCheckIn, setLastCheckIn] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -25,9 +28,9 @@ export default function RewardsPage() {
   const t = (en: string, hi: string) => lang === 'hi' ? hi : en;
   const today = new Date().toISOString().slice(0, 10);
   const refresh = useCallback(async () => {
-    if (!localStorage.getItem('sevasetu-token')) { setSignedIn(false); setPoints(0); setHistory([]); setLastCheckIn(null); setError(''); return; }
+    if (!localStorage.getItem('sevasetu-token')) { setSignedIn(false); setPoints(0); setHistory([]); setServiceCredits([]); setLastCheckIn(null); setError(''); return; }
     setSignedIn(true);
-    try { const data = await apiRequest<{ points: number; history: RewardEvent[]; lastCheckIn: string | null }>('/rewards'); setPoints(data.points); setHistory(data.history); setLastCheckIn(data.lastCheckIn); setError(''); }
+    try { const data = await apiRequest<{ points: number; history: RewardEvent[]; lastCheckIn: string | null; serviceCredits?: ServiceCredit[] }>('/rewards'); setPoints(data.points); setHistory(data.history); setServiceCredits(data.serviceCredits || []); setLastCheckIn(data.lastCheckIn); setError(''); }
     catch (e) {
       const message = e instanceof Error ? e.message : t('Sign in to see rewards.', 'पुरस्कार देखने के लिए साइन इन करें।');
       if (message === 'Sign in to continue') { localStorage.removeItem('sevasetu-token'); setSignedIn(false); setError(''); return; }
@@ -60,7 +63,8 @@ export default function RewardsPage() {
         <div className="rounded-2xl bg-gradient-to-br from-slate-800 to-violet-800 p-6 text-white"><p className="text-sm text-white/70">{t('Your SevaPoints', 'आपके सेवा पॉइंट')}</p><p className="my-2 text-5xl font-black">{points.toLocaleString('en-IN')}</p><p className="text-sm text-white/70">≈ ₹{Math.floor(points / 10)} {t('service credit value', 'सेवा क्रेडिट मूल्य')}</p></div>
         <div className="flex flex-col justify-center rounded-2xl border border-border bg-card p-6"><div className="mb-2 flex items-center gap-2"><CalendarCheck className="text-primary" /><h2 className="font-bold">{t('Daily check-in', 'दैनिक चेक-इन')}</h2></div><p className="mb-4 text-sm text-muted-foreground">{t('Earn 5 points once per day.', 'दिन में एक बार 5 पॉइंट पाएं।')}</p><button disabled={!signedIn || busy || lastCheckIn === today} onClick={() => void checkIn()} className="rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50">{lastCheckIn === today ? t('Checked in today', 'आज चेक-इन हो गया') : t('Check in', 'चेक-इन')}</button></div>
       </section>
-      <section className="rounded-2xl border border-border bg-card p-5"><div className="mb-4 flex items-center gap-2"><Gift className="text-primary" /><h2 className="text-lg font-bold">{t('Redeem service credit', 'सेवा क्रेडिट रिडीम करें')}</h2></div><p className="mb-4 text-sm text-muted-foreground">{t('Redeemed codes are stored in your activity. Apply them through customer support; automatic checkout discounts are not connected yet.', 'रिडीम किए गए कोड आपकी गतिविधि में रहेंगे। इन्हें सहायता टीम के माध्यम से इस्तेमाल करें; चेकआउट छूट अभी स्वचालित नहीं है।')}</p><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{offers.map((offer) => <article key={offer.points} className="rounded-xl border border-border p-4"><p className="font-bold">{lang === 'hi' ? offer.hi : offer.en}</p><p className="my-2 text-xs text-muted-foreground">{offer.points.toLocaleString('en-IN')} {t('points', 'पॉइंट')}</p><button disabled={!signedIn || busy || points < offer.points} onClick={() => void redeem(offer.points)} className="w-full rounded-full bg-foreground px-3 py-2 text-xs font-bold text-background disabled:opacity-40">{points >= offer.points ? t('Redeem', 'रिडीम करें') : <><Lock className="mr-1 inline" size={11} />{t('Not enough points', 'पर्याप्त पॉइंट नहीं')}</>}</button></article>)}</div></section>
+      <section className="rounded-2xl border border-border bg-card p-5"><div className="mb-4 flex items-center gap-2"><Gift className="text-primary" /><h2 className="text-lg font-bold">{t('Redeem service credit', 'सेवा क्रेडिट रिडीम करें')}</h2></div><p className="mb-4 text-sm text-muted-foreground">{t('Redeem points for a code, then apply that code to your next service booking.', 'पॉइंट रिडीम करके कोड पाएं और अगली सेवा बुकिंग पर लगाएं।')}</p><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{offers.map((offer) => <article key={offer.points} className="rounded-xl border border-border p-4"><p className="font-bold">{lang === 'hi' ? offer.hi : offer.en}</p><p className="my-2 text-xs text-muted-foreground">{offer.points.toLocaleString('en-IN')} {t('points', 'पॉइंट')}</p><button disabled={!signedIn || busy || points < offer.points} onClick={() => void redeem(offer.points)} className="w-full rounded-full bg-foreground px-3 py-2 text-xs font-bold text-background disabled:opacity-40">{points >= offer.points ? t('Redeem', 'रिडीम करें') : <><Lock className="mr-1 inline" size={11} />{t('Not enough points', 'पर्याप्त पॉइंट नहीं')}</>}</button></article>)}</div></section>
+      {signedIn && <section className="rounded-2xl border border-border bg-card p-5"><h2 className="mb-3 font-bold">{t('Your service credits', 'आपके सेवा क्रेडिट')}</h2>{serviceCredits.length === 0 ? <p className="text-sm text-muted-foreground">{t('Redeem points above to get a credit code.', 'क्रेडिट कोड पाने के लिए ऊपर पॉइंट रिडीम करें।')}</p> : <div className="grid gap-3 sm:grid-cols-2">{serviceCredits.map((credit) => <article key={credit.code} className="flex items-center justify-between gap-3 rounded-xl border border-border p-4"><div><p className="font-mono font-bold">{credit.code}</p><p className="text-xs text-muted-foreground">₹{credit.value} · {credit.usedAt ? t('Used', 'इस्तेमाल हुआ') : t('Ready to use', 'इस्तेमाल के लिए तैयार')}</p></div>{!credit.usedAt && <Link to={`/services?credit=${encodeURIComponent(credit.code)}`} className="rounded-full bg-primary px-3 py-2 text-xs font-bold text-white">{t('Use credit', 'क्रेडिट लगाएं')}</Link>}</article>)}</div>}</section>}
       <section className="rounded-2xl border border-border bg-card p-5"><div className="mb-3 flex items-center gap-2"><TrendingUp size={18} className="text-primary" /><h2 className="font-bold">{t('How to earn', 'पॉइंट कैसे कमाएं')}</h2></div><ul className="grid gap-3 text-sm sm:grid-cols-3"><li className="flex gap-2"><CheckCircleIcon />{t('Completed booking: 50 points', 'पूरी बुकिंग: 50 पॉइंट')}</li><li className="flex gap-2"><Star size={16} className="shrink-0 text-yellow-500" />{t('Completed booking review: 20 points', 'पूरी बुकिंग की समीक्षा: 20 पॉइंट')}</li><li className="flex gap-2"><Zap size={16} className="shrink-0 text-primary" />{t('Daily check-in: 5 points', 'दैनिक चेक-इन: 5 पॉइंट')}</li></ul></section>
       <section className="rounded-2xl border border-border bg-card p-5"><h2 className="mb-3 font-bold">{t('Points activity', 'पॉइंट गतिविधि')}</h2>{history.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">{t('Your earned and redeemed points will appear here.', 'कमाए और रिडीम किए पॉइंट यहाँ दिखेंगे।')}</p> : <div className="divide-y divide-border">{history.map((event) => <div key={event.id} className="flex justify-between gap-3 py-3 text-sm"><span>{lang === 'hi' ? event.labelHi : event.label}</span><span className={event.points >= 0 ? 'font-bold text-green-700' : 'font-bold text-red-600'}>{event.points > 0 ? '+' : ''}{event.points}</span></div>)}</div>}</section>
       <Link to="/services" className="flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-bold text-white">{t('Book a service', 'सेवा बुक करें')} <ArrowRight size={15} /></Link>

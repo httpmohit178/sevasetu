@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Activity, Briefcase, Clock3, LocateFixed, MapPin, Power, RefreshCw } from 'lucide-react';
 import DashboardLayout, { NavItem } from '@/layouts/DashboardLayout';
+import { useAppLanguage } from '@/hooks/useAppLanguage';
 import { apiRequest } from '../lib/api-client';
 import { PhotoBanner } from '../components/ui/photo-banner';
 
@@ -17,7 +18,7 @@ const labels: Record<string, { en: string; hi: string }> = {
 const nextStatus: Record<string, string> = { assigned: 'en_route', en_route: 'arrived', arrived: 'in_progress', in_progress: 'completed' };
 
 export default function ProviderDashboard() {
-  const [lang, setLang] = useState<Lang>('en');
+  const [lang, setLang] = useAppLanguage();
   const [provider, setProvider] = useState<Provider | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [busy, setBusy] = useState('');

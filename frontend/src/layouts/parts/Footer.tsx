@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom';
-import { Globe, Facebook, Twitter, Instagram, Youtube, Phone, Mail, MapPin } from 'lucide-react';
-import { useState } from 'react';
+import { Globe, MessageCircle } from 'lucide-react';
+import { useAppLanguage } from '../../hooks/useAppLanguage';
 
 export default function Footer() {
-  const [lang, setLang] = useState<'en' | 'hi'>('en');
+  const [lang, setLang] = useAppLanguage();
   const currentYear = new Date().getFullYear();
 
   return (
@@ -44,14 +44,7 @@ export default function Footer() {
             <p className="text-xs text-white/40 italic mb-4">
               {lang === 'hi' ? '"गांव से शहर तक, सेवा हर कदम पर"' : '"Seva har kadam par — Service at every step"'}
             </p>
-            {/* Social Icons */}
-            <div className="flex gap-3">
-              {[Facebook, Twitter, Instagram, Youtube].map((Icon, i) => (
-                <a key={i} href="#" className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-primary transition-colors">
-                  <Icon size={14} />
-                </a>
-              ))}
-            </div>
+            <Link to="/assistant" className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-2 text-xs text-white/80 hover:bg-primary transition-colors"><MessageCircle size={14} />{lang === 'hi' ? 'सहायता चैट खोलें' : 'Open support chat'}</Link>
           </div>
 
           {/* Services */}
@@ -108,15 +101,15 @@ export default function Footer() {
             <ul className="space-y-3">
               <li className="flex items-start gap-2 text-sm text-white/60">
                 <Phone size={14} className="mt-0.5 text-primary shrink-0" />
-                <span>1800-XXX-SEVA (Toll Free)</span>
+                <Link to="/assistant" className="hover:text-white">{lang === 'hi' ? 'AI सहायता चैट' : 'Support through AI assistant'}</Link>
               </li>
               <li className="flex items-start gap-2 text-sm text-white/60">
                 <Mail size={14} className="mt-0.5 text-primary shrink-0" />
-                <span>help@sevasetu.in</span>
+                <Link to="/assistant" className="hover:text-white">{lang === 'hi' ? 'सेवा सहायता खोलें' : 'Open service support'}</Link>
               </li>
               <li className="flex items-start gap-2 text-sm text-white/60">
                 <MapPin size={14} className="mt-0.5 text-primary shrink-0" />
-                <span>New Delhi, India 🇮🇳</span>
+                <span>{lang === 'hi' ? 'भारत भर में सेवाएं 🇮🇳' : 'Services across India 🇮🇳'}</span>
               </li>
             </ul>
 
@@ -124,7 +117,7 @@ export default function Footer() {
             <div className="mt-5">
               <p className="text-xs text-white/40 mb-2">{lang === 'hi' ? 'भाषा बदलें' : 'Change Language'}</p>
               <button
-                onClick={() => setLang(lang === 'en' ? 'hi' : 'en')}
+              onClick={() => setLang(lang === 'en' ? 'hi' : 'en')}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/20 text-sm text-white/70 hover:border-primary hover:text-primary transition-all"
               >
                 <Globe size={13} />
@@ -145,11 +138,8 @@ export default function Footer() {
             Made with <span className="text-red-400">♥</span> for Bharat 🇮🇳
           </p>
           <div className="flex gap-4">
-            {['Privacy', 'Terms', 'Support'].map((item) => (
-              <Link key={item} to={`/${item.toLowerCase()}`} className="text-xs text-white/40 hover:text-white/70 transition-colors">
-                {item}
-              </Link>
-            ))}
+            <Link to="/assistant" className="text-xs text-white/40 hover:text-white/70 transition-colors">{lang === 'hi' ? 'सहायता' : 'Support'}</Link>
+            <Link to="/schemes" className="text-xs text-white/40 hover:text-white/70 transition-colors">{lang === 'hi' ? 'योजनाएं' : 'Schemes'}</Link>
           </div>
         </div>
       </div>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Activity, ArrowRight, Building2, CalendarDays, Gift, LayoutDashboard, MapPin, Plus, Zap } from 'lucide-react';
 import DashboardLayout, { NavItem } from '@/layouts/DashboardLayout';
+import { useAppLanguage } from '@/hooks/useAppLanguage';
 import { apiRequest } from '../lib/api-client';
 import { PhotoBanner } from '../components/ui/photo-banner';
 
@@ -16,7 +17,7 @@ const statusLabel: Record<string, { en: string; hi: string }> = {
 };
 
 export default function UserDashboard() {
-  const [lang, setLang] = useState<Lang>('en');
+  const [lang, setLang] = useAppLanguage();
   const [user, setUser] = useState<User | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [points, setPoints] = useState(0);

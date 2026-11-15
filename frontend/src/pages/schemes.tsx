@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { apiRequest } from '../lib/api-client';
+import { useAppLanguage } from '../hooks/useAppLanguage';
 import { PhotoBanner } from '../components/ui/photo-banner';
 import {
   Search, ChevronDown, ChevronUp, Shield,
@@ -454,7 +455,7 @@ function ApplyModal({ scheme, lang, onClose }: { scheme: typeof schemes[0]; lang
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function SchemesPage() {
-  const [lang, setLang] = useState<Lang>('en');
+  const [lang, setLang] = useAppLanguage();
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [applyScheme, setApplyScheme] = useState<typeof schemes[0] | null>(null);

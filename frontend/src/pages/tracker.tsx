@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, Clock, MapPin, Navigation, Phone, RefreshCw, Star, UserRound, XCircle } from 'lucide-react';
 import { apiRequest } from '../lib/api-client';
+import { useAppLanguage } from '../hooks/useAppLanguage';
 import { PhotoBanner } from '../components/ui/photo-banner';
 
 type Lang = 'en' | 'hi';
@@ -32,7 +33,7 @@ function distanceKm(a: Point, b: Point) {
 }
 
 export default function TrackerPage() {
-  const [lang, setLang] = useState<Lang>('en');
+  const [lang, setLang] = useAppLanguage();
   const [hasSession, setHasSession] = useState(() => Boolean(localStorage.getItem('sevasetu-token')));
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [activeId, setActiveId] = useState('');

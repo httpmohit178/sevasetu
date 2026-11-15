@@ -4,9 +4,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight, ArrowLeft, CheckCircle, Shield, Zap,
   Phone, Globe, Star, TrendingUp, Users, Briefcase,
-  MapPin, Camera, Upload, ChevronDown
+  MapPin, ChevronDown
 } from 'lucide-react';
 import { apiRequest } from '../lib/api-client';
+import { useAppLanguage } from '../hooks/useAppLanguage';
 import { PhotoBanner } from '../components/ui/photo-banner';
 
 type Lang = 'en' | 'hi';
@@ -48,7 +49,7 @@ const cities = [
 const steps: { id: Step; label: string; labelHi: string }[] = [
   { id: 'personal', label: 'Personal', labelHi: 'व्यक्तिगत' },
   { id: 'skills', label: 'Skills', labelHi: 'कौशल' },
-  { id: 'docs', label: 'Documents', labelHi: 'दस्तावेज़' },
+  { id: 'docs', label: 'Review', labelHi: 'समीक्षा' },
 ];
 
 function StepBar({ current, lang }: { current: Step; lang: Lang }) {
@@ -81,7 +82,7 @@ function StepBar({ current, lang }: { current: Step; lang: Lang }) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function JoinPage() {
-  const [lang, setLang] = useState<Lang>('en');
+  const [lang, setLang] = useAppLanguage();
   const [step, setStep] = useState<Step>('intro');
   const [isLoading, setIsLoading] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -89,8 +90,7 @@ export default function JoinPage() {
 
   // Form state
   const [form, setForm] = useState({
-    name: '', phone: '', city: '', address: '',
-    experience: '1', aadhaar: '', pan: '', photo: false,
+    name: '', phone: '', city: '', address: '', experience: '1',
   });
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
 
@@ -107,7 +107,8 @@ export default function JoinPage() {
       if (step === 'personal') setStep('skills');
       else if (step === 'skills') setStep('docs');
       else if (step === 'docs') {
-        await apiRequest('/providers', { method: 'POST', body: JSON.stringify({ ...form, skills: selectedSkills }) });
+        const experience = form.experience === '<1' ? 0 : form.experience === '2-3' ? 2 : form.experience === '4-5' ? 4 : form.experience === '5+' ? 5 : Number(form.experience);
+        await apiRequest('/providers', { method: 'POST', body: JSON.stringify({ ...form, experience, skills: selectedSkills }) });
         setStep('success');
         setTimeout(() => navigate('/provider-dashboard'), 1200);
       }
@@ -118,7 +119,7 @@ export default function JoinPage() {
   const canProceed = () => {
     if (step === 'personal') return form.name && form.phone.length >= 10 && form.city;
     if (step === 'skills') return selectedSkills.length > 0;
-    if (step === 'docs') return form.aadhaar.length >= 4;
+    if (step === 'docs') return true;
     return false;
   };
 
@@ -275,7 +276,7 @@ export default function JoinPage() {
                   {[
                     { step: '1', title: lang === 'hi' ? 'व्यक्तिगत जानकारी' : 'Personal Details', desc: lang === 'hi' ? 'नाम, फोन, शहर' : 'Name, phone, city', icon: Phone },
                     { step: '2', title: lang === 'hi' ? 'कौशल चुनें' : 'Choose Your Skills', desc: lang === 'hi' ? 'आप क्या काम करते हैं' : 'What services you offer', icon: Briefcase },
-                    { step: '3', title: lang === 'hi' ? 'दस्तावेज़ अपलोड करें' : 'Upload Documents', desc: lang === 'hi' ? 'आधार और फोटो' : 'Aadhaar & photo', icon: Upload },
+                    { step: '3', title: lang === 'hi' ? 'आवेदन की समीक्षा' : 'Review application', desc: lang === 'hi' ? 'जानकारी जांचें और भेजें' : 'Check details and submit', icon: CheckCircle },
                   ].map(({ step: s, title, desc, icon: Icon }) => (
                     <div key={s} className="flex items-center gap-3 p-3 bg-muted rounded-xl">
                       <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -291,15 +292,21 @@ export default function JoinPage() {
                 </div>
 
                 <button
-                  onClick={() => setStep('personal')}
+                  onClick={() => {
+                    if (!localStorage.getItem('sevasetu-token')) {
+                      navigate('/login', { state: { from: '/join' } });
+                      return;
+                    }
+                    setStep('personal');
+                  }}
                   className="w-full py-3.5 rounded-full bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-all shadow-lg shadow-primary/25 flex items-center justify-center gap-2 mb-3"
                 >
-                  {lang === 'hi' ? 'अभी शुरू करें' : 'Start Registration'} <ArrowRight size={15} />
+                  {localStorage.getItem('sevasetu-token') ? (lang === 'hi' ? 'अभी शुरू करें' : 'Start application') : (lang === 'hi' ? 'साइन इन करके शुरू करें' : 'Sign in to start')} <ArrowRight size={15} />
                 </button>
 
                 <p className="text-center text-sm text-muted-foreground">
                   {lang === 'hi' ? 'पहले से खाता है?' : 'Already have an account?'}{' '}
-                  <Link to="/login" className="text-primary font-semibold hover:underline">
+                  <Link to="/login" state={{ from: '/join' }} className="text-primary font-semibold hover:underline">
                     {lang === 'hi' ? 'लॉगिन करें' : 'Login'}
                   </Link>
                 </p>
@@ -322,26 +329,6 @@ export default function JoinPage() {
                 </p>
 
                 <div className="space-y-3">
-                  {/* Photo upload */}
-                  <div className="flex items-center gap-3 mb-2">
-                    <button
-                      onClick={() => setForm(f => ({ ...f, photo: true }))}
-                      className={`w-16 h-16 rounded-full border-2 border-dashed flex flex-col items-center justify-center transition-all ${
-                        form.photo ? 'border-secondary bg-secondary/10' : 'border-border hover:border-primary/50'
-                      }`}
-                    >
-                      {form.photo ? <CheckCircle size={22} className="text-secondary" /> : <Camera size={20} className="text-muted-foreground" />}
-                    </button>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">
-                        {lang === 'hi' ? 'प्रोफाइल फोटो' : 'Profile Photo'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {form.photo ? (lang === 'hi' ? 'अपलोड हो गया ✓' : 'Uploaded ✓') : (lang === 'hi' ? 'टैप करके अपलोड करें' : 'Tap to upload')}
-                      </p>
-                    </div>
-                  </div>
-
                   {[
                     { key: 'name', label: lang === 'hi' ? 'पूरा नाम *' : 'Full Name *', placeholder: lang === 'hi' ? 'आपका नाम' : 'Your full name', type: 'text' },
                     { key: 'phone', label: lang === 'hi' ? 'मोबाइल नंबर *' : 'Mobile Number *', placeholder: '98765 43210', type: 'tel' },
@@ -454,68 +441,18 @@ export default function JoinPage() {
                 <StepBar current="docs" lang={lang} />
 
                 <h2 className="text-xl font-bold text-foreground mb-1">
-                  {lang === 'hi' ? 'दस्तावेज़ अपलोड करें' : 'Upload Documents'}
+                  {lang === 'hi' ? 'आवेदन की समीक्षा करें' : 'Review your application'}
                 </h2>
                 <p className="text-muted-foreground text-sm mb-5">
-                  {lang === 'hi' ? 'वेरिफिकेशन के लिए आवश्यक' : 'Required for verification'}
+                  {lang === 'hi' ? 'आपकी जानकारी और कौशल आवेदन के साथ भेजे जाएंगे।' : 'Your profile and selected skills will be sent with your application.'}
                 </p>
-
-                <div className="space-y-4">
-                  {/* Aadhaar */}
-                  <div>
-                    <label className="text-xs font-semibold text-foreground mb-1.5 block">
-                      {lang === 'hi' ? 'आधार नंबर (अंतिम 4 अंक) *' : 'Aadhaar Number (last 4 digits) *'}
-                    </label>
-                    <input
-                      type="text"
-                      value={form.aadhaar}
-                      onChange={e => setForm(f => ({ ...f, aadhaar: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
-                      placeholder="XXXX"
-                      className="w-full bg-muted border-2 border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary text-foreground placeholder:text-muted-foreground/60 font-mono tracking-widest"
-                    />
-                  </div>
-
-                  {/* PAN */}
-                  <div>
-                    <label className="text-xs font-semibold text-foreground mb-1.5 block">
-                      {lang === 'hi' ? 'PAN कार्ड (वैकल्पिक)' : 'PAN Card (optional)'}
-                    </label>
-                    <input
-                      type="text"
-                      value={form.pan}
-                      onChange={e => setForm(f => ({ ...f, pan: e.target.value.toUpperCase().slice(0, 10) }))}
-                      placeholder="ABCDE1234F"
-                      className="w-full bg-muted border-2 border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary text-foreground placeholder:text-muted-foreground/60 font-mono tracking-wider"
-                    />
-                  </div>
-
-                  {/* Upload boxes */}
-                  {[
-                    { label: lang === 'hi' ? 'आधार कार्ड फोटो' : 'Aadhaar Card Photo', icon: Upload },
-                    { label: lang === 'hi' ? 'कौशल प्रमाण पत्र (वैकल्पिक)' : 'Skill Certificate (optional)', icon: Upload },
-                  ].map(({ label, icon: Icon }) => (
-                    <div key={label}>
-                      <label className="text-xs font-semibold text-foreground mb-1.5 block">{label}</label>
-                      <button className="w-full border-2 border-dashed border-border rounded-xl py-5 flex flex-col items-center gap-2 hover:border-primary/50 hover:bg-primary/5 transition-all">
-                        <Icon size={20} className="text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">
-                          {lang === 'hi' ? 'टैप करके अपलोड करें' : 'Tap to upload'}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground/60">JPG, PNG, PDF • Max 5MB</span>
-                      </button>
-                    </div>
-                  ))}
-
-                  {/* Privacy note */}
-                  <div className="flex items-start gap-2 bg-secondary/10 rounded-xl p-3">
-                    <Shield size={14} className="text-secondary shrink-0 mt-0.5" />
-                    <p className="text-xs text-muted-foreground">
-                      {lang === 'hi'
-                        ? 'आपके दस्तावेज़ सुरक्षित हैं। केवल वेरिफिकेशन के लिए उपयोग किए जाएंगे।'
-                        : 'Your documents are secure and will only be used for verification purposes.'}
-                    </p>
-                  </div>
+                <div className="space-y-3 rounded-2xl border border-border bg-muted/50 p-4 text-sm">
+                  <p><span className="font-semibold">{lang === 'hi' ? 'नाम:' : 'Name:'}</span> {form.name}</p>
+                  <p><span className="font-semibold">{lang === 'hi' ? 'फोन:' : 'Phone:'}</span> {form.phone}</p>
+                  <p><span className="font-semibold">{lang === 'hi' ? 'शहर:' : 'City:'}</span> {form.city}</p>
+                  <p><span className="font-semibold">{lang === 'hi' ? 'सेवाएं:' : 'Services:'}</span> {selectedSkills.map(id => serviceCategories.find(skill => skill.id === id)?.label).filter(Boolean).join(', ')}</p>
                 </div>
+                <p className="mt-4 flex items-start gap-2 rounded-xl bg-secondary/10 p-3 text-xs text-muted-foreground"><Shield size={14} className="mt-0.5 shrink-0 text-secondary" />{lang === 'hi' ? 'इस आवेदन में आधार, PAN या दस्तावेज़ अपलोड नहीं मांगे जाते।' : 'This application does not collect Aadhaar, PAN, or document uploads.'}</p>
               </motion.div>
             )}
 

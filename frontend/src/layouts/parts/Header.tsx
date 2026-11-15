@@ -2,13 +2,17 @@ import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Globe, ArrowRight, Sun, Moon, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useDarkMode } from '@/hooks/useDarkMode';
+import { useAppLanguage } from '@/hooks/useAppLanguage';
 
 interface HeaderProps {
   lang?: 'en' | 'hi';
   onLangToggle?: () => void;
 }
 
-export default function Header({ lang = 'en', onLangToggle }: HeaderProps) {
+export default function Header({ lang: providedLang, onLangToggle }: HeaderProps) {
+  const [appLang, setAppLang] = useAppLanguage();
+  const lang = providedLang ?? appLang;
+  const toggleLanguage = onLangToggle ?? (() => setAppLang(current => current === 'en' ? 'hi' : 'en'));
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(localStorage.getItem('sevasetu-token')));
@@ -117,7 +121,7 @@ export default function Header({ lang = 'en', onLangToggle }: HeaderProps) {
 
             {/* Language Toggle */}
             <button
-              onClick={onLangToggle}
+              onClick={toggleLanguage}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-primary/50 transition-all"
             >
               <Globe size={14} />
@@ -189,7 +193,7 @@ export default function Header({ lang = 'en', onLangToggle }: HeaderProps) {
             </nav>
             <div className="flex flex-col gap-2 pt-3 border-t border-border">
               <button
-                onClick={onLangToggle}
+                onClick={toggleLanguage}
                 className="flex items-center gap-2 px-3 py-2 rounded-md border border-border text-sm font-medium text-muted-foreground hover:text-foreground transition-all w-full"
               >
                 <Globe size={14} />

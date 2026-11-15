@@ -7,6 +7,7 @@ import {
   Clock, RefreshCw, X
 } from 'lucide-react';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
+import { useAppLanguage } from '@/hooks/useAppLanguage';
 import { getAIResponse, getRequestedServiceId, speakText, type AIMessage, type Provider, type Lang } from '@/lib/sevaAI';
 import { apiRequest } from '@/lib/api-client';
 import { PhotoBanner } from '../components/ui/photo-banner';
@@ -276,7 +277,7 @@ function MessageBubble({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function AIAssistantPage() {
   const navigate = useNavigate();
-  const [lang, setLang] = useState<Lang>('en');
+  const [lang, setLang] = useAppLanguage();
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -427,6 +428,17 @@ export default function AIAssistantPage() {
     setLang(prev => prev === 'en' ? 'hi' : 'en');
   }, []);
 
+  const handleTtsToggle = () => {
+    if (ttsEnabled) {
+      window.speechSynthesis?.cancel();
+      setTtsEnabled(false);
+      return;
+    }
+    setTtsEnabled(true);
+    const latestReply = [...messages].reverse().find((message) => message.role === 'assistant' && message.content);
+    if (latestReply) speakText(lang === 'hi' && latestReply.contentHi ? latestReply.contentHi : latestReply.content, lang);
+  };
+
   // ── Handle quick reply delegation from DOM ──────────────────────────────
   const handleChatClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -478,7 +490,7 @@ export default function AIAssistantPage() {
           <div className="flex items-center gap-2">
             {/* TTS Toggle */}
             <button
-              onClick={() => setTtsEnabled(prev => !prev)}
+              onClick={handleTtsToggle}
               title={ttsEnabled ? 'Mute voice' : 'Enable voice'}
               className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
                 ttsEnabled ? 'bg-primary text-white' : 'bg-muted text-muted-foreground hover:bg-primary/10'

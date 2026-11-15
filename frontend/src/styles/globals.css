@@ -7,25 +7,26 @@
 @layer base {
   :root {
     /* Core Colors — Light Mode */
-    --background: 32 100% 97%;
+    --background: 36 100% 98%;
     --foreground: 0 0% 4%;
     --card: 0 0% 100%;
     --card-foreground: 0 0% 4%;
     --popover: 32 100% 97%;
     --popover-foreground: 0 0% 4%;
-    --primary: 25 100% 50%;
+    /* Deep enough for white button labels to remain readable in light mode. */
+    --primary: 25 100% 38%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 145 61% 26%;
+    --secondary: 145 68% 24%;
     --secondary-foreground: 0 0% 100%;
     --muted: 37 51% 92%;
     --muted-foreground: 29 22% 34%;
-    --accent: 18 86% 41%;
+    --accent: 18 90% 34%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 32 47% 83%;
-    --input: 32 47% 83%;
-    --ring: 25 100% 50%;
+    --border: 32 35% 82%;
+    --input: 32 35% 82%;
+    --ring: 25 100% 38%;
 
     /* Extended Colors */
     --chart-1: 25 100% 80%;
@@ -114,6 +115,33 @@
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-heading) !important;
+  }
+
+  button:not(:disabled) {
+    transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+    transition-duration: 160ms;
+    transition-timing-function: cubic-bezier(.2,.7,.2,1);
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 3px solid hsl(var(--ring) / 0.55);
+    outline-offset: 3px;
+  }
+
+  button:not(:disabled):active {
+    transform: translateY(1px) scale(0.985);
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  a, button {
+    -webkit-tap-highlight-color: transparent;
   }
 }
 

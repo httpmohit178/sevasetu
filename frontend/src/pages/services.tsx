@@ -3,10 +3,13 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, Shield, Home, Leaf, Palette, BookOpen, Truck, Wrench, Zap, Scissors, Utensils, ArrowRight, Wifi } from 'lucide-react';
 import { apiRequest } from '../lib/api-client';
+import { useAppLanguage } from '../hooks/useAppLanguage';
+import { SmartImage } from '../components/ui/smart-image';
 
 type Lang = 'en' | 'hi';
 type Area = 'all' | 'rural' | 'urban';
 type CatalogService = { id: string; name: string; nameHi: string; startingPrice: number; onlineProviders: number; category: string; area: 'rural' | 'urban' };
+type ServiceCredit = { code: string; value: number; usedAt: string | null };
 const fallbackCatalog: CatalogService[] = [
   { id: 'crop', name: 'Crop Advisory', nameHi: 'फसल सलाह', startingPrice: 199, onlineProviders: 0, category: 'agri', area: 'rural' },
   { id: 'soil', name: 'Soil Testing', nameHi: 'मिट्टी जांच', startingPrice: 249, onlineProviders: 0, category: 'agri', area: 'rural' },
@@ -41,6 +44,16 @@ const categories = [
   { id: 'transport', label: 'Transport', labelHi: 'परिवहन', icon: Truck },
 ];
 const serviceIcons: Record<string, typeof Wrench> = { crop: Leaf, soil: Leaf, tractor: Truck, dairy: Leaf, veterinary: Shield, pump: Wrench, solar: Zap, handicraft: Palette, biogas: Leaf, gardening: Leaf, plumbing: Wrench, electrical: Zap, cleaning: Home, painting: Palette, carpentry: Wrench, cooking: Utensils, tutoring: BookOpen, driving: Truck, beauty: Scissors, ac: Wifi, security: Shield };
+const servicePhotos: Record<string, string> = {
+  crop: 'photo-1500382017468-9049fed747ef', soil: 'photo-1416879595882-3373a0480b5b', tractor: 'photo-1530268729831-4b0b9e170218',
+  dairy: 'photo-1516467508483-a7212febe31a', veterinary: 'photo-1548199973-03cce0bbc87b', pump: 'photo-1581092160562-40aa08e78837',
+  solar: 'photo-1508514177221-188b1cf16e9d', handicraft: 'photo-1452860606245-08befc0ff44b', biogas: 'photo-1473341304170-971dccb5ac1e',
+  gardening: 'photo-1416879595882-3373a0480b5b', plumbing: 'photo-1607472586893-edb57bdc0e39', electrical: 'photo-1621905251189-08b45d6a269e',
+  cleaning: 'photo-1581578731548-c64695cc6952', painting: 'photo-1562259949-e8d7689d7828', carpentry: 'photo-1620626011761-996317b8d101',
+  cooking: 'photo-1556911220-e15b29be8c8f', tutoring: 'photo-1503676260728-1c00da094a0b', driving: 'photo-1449965408869-eaa3f722e40d',
+  beauty: 'photo-1560869713-7d0a29430803', ac: 'photo-1631545806609-5d2e797f9273', security: 'photo-1453873531674-2151bcd01707',
+};
+const photoForService = (id: string) => `https://images.unsplash.com/${servicePhotos[id] || 'photo-1603201667230-bd139210db18'}?auto=format&fit=crop&w=900&q=80`;
 const areas: { id: Area; en: string; hi: string }[] = [
   { id: 'all', en: 'Rural + Urban', hi: 'ग्रामीण + शहरी' },
   { id: 'rural', en: 'Rural area', hi: 'ग्रामीण क्षेत्र' },
@@ -54,7 +67,7 @@ const sortOptions = [
 
 export default function ServicesPage() {
   const navigate = useNavigate();
-  const [lang, setLang] = useState<Lang>('en');
+  const [lang, setLang] = useAppLanguage();
   const [catalog, setCatalog] = useState<CatalogService[]>([]);
   const [activeArea, setActiveArea] = useState<Area>(() => {
     const requested = new URLSearchParams(window.location.search).get('area');
@@ -68,6 +81,9 @@ export default function ServicesPage() {
   const [sortBy, setSortBy] = useState('popular');
   const [loading, setLoading] = useState(true);
   const [bookingId, setBookingId] = useState('');
+  const [bookingDiscount, setBookingDiscount] = useState(0);
+  const [serviceCredits, setServiceCredits] = useState<ServiceCredit[]>([]);
+  const [selectedCreditCode, setSelectedCreditCode] = useState(() => new URLSearchParams(window.location.search).get('credit') || '');
   const [busyId, setBusyId] = useState('');
   const [error, setError] = useState('');
   const [catalogWarning, setCatalogWarning] = useState(false);
@@ -91,6 +107,21 @@ export default function ServicesPage() {
     return () => window.clearInterval(refreshTimer);
   }, [loadCatalog]);
 
+  const loadCredits = useCallback(async () => {
+    if (!localStorage.getItem('sevasetu-token')) { setServiceCredits([]); setSelectedCreditCode(''); return; }
+    try {
+      const data = await apiRequest<{ serviceCredits?: ServiceCredit[] }>('/rewards');
+      const available = (data.serviceCredits || []).filter((credit) => !credit.usedAt);
+      setServiceCredits(available);
+      setSelectedCreditCode((current) => available.some((credit) => credit.code === current) ? current : '');
+    } catch { setServiceCredits([]); }
+  }, []);
+  useEffect(() => {
+    void loadCredits();
+    window.addEventListener('sevasetu-auth-change', loadCredits);
+    return () => window.removeEventListener('sevasetu-auth-change', loadCredits);
+  }, [loadCredits]);
+
   const filtered = useMemo(() => {
     let result = catalog.filter((service) => (activeArea === 'all' || service.area === activeArea)
       && (activeCategory === 'all' || service.category === activeCategory)
@@ -105,8 +136,10 @@ export default function ServicesPage() {
     if (!localStorage.getItem('sevasetu-token')) { navigate('/login', { state: { from: '/services' } }); return; }
     setBusyId(service.id); setError(''); setBookingId('');
     try {
-      const result = await apiRequest<{ booking: { id: string } }>('/bookings', { method: 'POST', body: JSON.stringify({ serviceId: service.id, paymentMethod: 'cod' }) });
+      const result = await apiRequest<{ booking: { id: string; creditDiscount?: number } }>('/bookings', { method: 'POST', body: JSON.stringify({ serviceId: service.id, paymentMethod: 'cod', ...(selectedCreditCode ? { creditCode: selectedCreditCode } : {}) }) });
       setBookingId(result.booking.id);
+      setBookingDiscount(result.booking.creditDiscount || 0);
+      if (result.booking.creditDiscount) { setSelectedCreditCode(''); void loadCredits(); }
     } catch (e) { setError(e instanceof Error ? e.message : t('Booking failed', 'बुकिंग नहीं हो सकी')); }
     finally { setBusyId(''); }
   };
@@ -123,6 +156,8 @@ export default function ServicesPage() {
       {error && <p role="alert" className="mb-4 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
       {catalogWarning && <p role="status" className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{t('Showing the service catalogue. Live provider availability is temporarily unavailable.', 'सेवाओं की सूची दिखाई जा रही है। लाइव प्रदाता उपलब्धता अभी उपलब्ध नहीं है।')} <button onClick={() => { setLoading(true); void loadCatalog(); }} className="ml-2 font-bold underline">{t('Retry', 'फिर कोशिश करें')}</button></p>}
       {bookingId && <p role="status" className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-green-300 bg-green-50 p-3 text-sm text-green-900">{t('Booking request created', 'बुकिंग अनुरोध भेज दिया गया')} · #{bookingId}<Link className="font-bold underline" to="/tracker">{t('Track it', 'स्थिति देखें')}</Link></p>}
+      {bookingId && bookingDiscount > 0 && <p role="status" className="-mt-3 mb-4 text-sm font-semibold text-green-800">{t(`₹${bookingDiscount} service credit applied.`, `₹${bookingDiscount} सेवा क्रेडिट लागू हुआ।`)}</p>}
+      {serviceCredits.length > 0 && <div className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-secondary/30 bg-secondary/5 p-3"><label htmlFor="service-credit" className="text-sm font-semibold">{t('Apply service credit', 'सेवा क्रेडिट लगाएं')}</label><select id="service-credit" value={selectedCreditCode} onChange={(event) => setSelectedCreditCode(event.target.value)} className="min-w-56 rounded-lg border border-border bg-card px-3 py-2 text-sm"><option value="">{t('No credit selected', 'कोई क्रेडिट नहीं')}</option>{serviceCredits.map((credit) => <option key={credit.code} value={credit.code}>{credit.code} · ₹{credit.value}</option>)}</select></div>}
       <div className="mb-4 grid grid-cols-3 gap-2">{areas.map((area) => <button key={area.id} onClick={() => setActiveArea(area.id)} className={`rounded-2xl border px-3 py-3 text-sm font-bold ${activeArea === area.id ? 'border-primary bg-primary text-white' : 'border-border bg-card'}`}>{lang === 'hi' ? area.hi : area.en}</button>)}</div>
       <div className="mb-6 flex gap-2 overflow-x-auto pb-2">{categories.map(({ id, label, labelHi, icon: Icon }) => <button key={id} onClick={() => setActiveCategory(id)} className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold ${activeCategory === id ? 'bg-primary text-white' : 'border border-border bg-card text-muted-foreground'}`}><Icon size={13} />{lang === 'hi' ? labelHi : label}</button>)}</div>
       <div className="mb-5 flex items-center justify-between"><p className="text-sm text-muted-foreground">{loading ? t('Loading…', 'लोड हो रहा है…') : `${filtered.length} ${t('services', 'सेवाएं')}`}</p><select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="rounded-lg border border-border bg-card px-3 py-2 text-xs">{sortOptions.map((opt) => <option key={opt.value} value={opt.value}>{lang === 'hi' ? opt.labelHi : opt.label}</option>)}</select></div>
@@ -131,7 +166,7 @@ export default function ServicesPage() {
           const group = filtered.filter((service) => service.area === area);
           if (group.length === 0) return null;
           return <section key={area}><div className="mb-3 flex items-center justify-between"><h2 className="text-lg font-black">{area === 'rural' ? t('Rural area services', 'ग्रामीण क्षेत्र की सेवाएं') : t('Urban area services', 'शहरी क्षेत्र की सेवाएं')}</h2><span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold">{group.length} {t('services', 'सेवाएं')}</span></div><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{group.map((service, index) => { const Icon = serviceIcons[service.id] || Wrench; return <motion.article key={service.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.025 }} className="group rounded-2xl border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
-          <div className={`mb-4 flex h-24 items-center justify-center rounded-xl ${service.area === 'rural' ? 'bg-gradient-to-br from-green-50 to-lime-100 text-green-800' : 'bg-gradient-to-br from-orange-50 to-amber-100 text-orange-800'}`}><Icon size={36} strokeWidth={1.6} /></div>
+          <SmartImage src={photoForService(service.id)} alt={`${service.name} service`} className="mb-4 h-36 rounded-xl" imageClassName="transition-transform duration-300 group-hover:scale-105" />
           <div>
           <div className="mb-3 flex items-center justify-between"><div className="grid h-11 w-11 place-items-center rounded-xl bg-primary/10 text-primary"><Icon size={20} /></div><span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${service.area === 'rural' ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'}`}>{service.area === 'rural' ? t('Rural', 'ग्रामीण') : t('Urban', 'शहरी')}</span></div>
           <h3 className="font-bold">{lang === 'hi' ? service.nameHi : service.name}</h3>

@@ -10,10 +10,10 @@ import {
 } from 'lucide-react';
 import DashboardLayout, { NavItem } from '@/layouts/DashboardLayout';
 import { apiRequest } from '@/lib/api-client';
-import { PhotoBanner } from '../components/ui/photo-banner';
+import { useAppLanguage } from '../hooks/useAppLanguage';
 
 type Lang = 'en' | 'hi';
-type Section = 'profile' | 'notifications' | 'language' | 'appearance' | 'security' | 'payments';
+type Section = 'profile' | 'notifications' | 'language' | 'appearance' | 'payments';
 
 // ─── Section Nav ──────────────────────────────────────────────────────────────
 const sections: { id: Section; label: string; labelHi: string; icon: React.ReactNode; desc: string; descHi: string }[] = [
@@ -21,8 +21,7 @@ const sections: { id: Section; label: string; labelHi: string; icon: React.React
   { id: 'notifications', label: 'Notifications',  labelHi: 'सूचनाएं',        icon: <Bell size={16} />,       desc: 'Alerts, reminders, updates',         descHi: 'अलर्ट, रिमाइंडर, अपडेट' },
   { id: 'language',      label: 'Language',       labelHi: 'भाषा',           icon: <Globe size={16} />,      desc: 'App language & region',              descHi: 'ऐप भाषा और क्षेत्र' },
   { id: 'appearance',    label: 'Appearance',     labelHi: 'दिखावट',         icon: <Palette size={16} />,    desc: 'Theme, font size, display',          descHi: 'थीम, फ़ॉन्ट साइज़, डिस्प्ले' },
-  { id: 'security',      label: 'Security',       labelHi: 'सुरक्षा',        icon: <Shield size={16} />,     desc: 'Password, PIN, 2FA',                 descHi: 'पासवर्ड, PIN, 2FA' },
-  { id: 'payments',      label: 'Payments',       labelHi: 'भुगतान',         icon: <CreditCard size={16} />, desc: 'UPI, cards, wallet balance',         descHi: 'UPI, कार्ड, वॉलेट बैलेंस' },
+  { id: 'payments',      label: 'Bookings & payments', labelHi: 'बुकिंग और भुगतान', icon: <CreditCard size={16} />, desc: 'Booking history and payment status', descHi: 'बुकिंग इतिहास और भुगतान स्थिति' },
 ];
 
 // ─── Toggle Switch ────────────────────────────────────────────────────────────
@@ -97,9 +96,6 @@ function ProfileSection({ lang }: { lang: Lang }) {
             <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center text-white text-2xl font-black">
               {profile.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || '—'}
             </div>
-            <button className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-primary border-2 border-background flex items-center justify-center text-white hover:bg-primary/90 transition-all">
-              <Camera size={11} />
-            </button>
           </div>
           <div>
             <p className="text-sm font-bold text-foreground">{loading ? t('Loading…', 'लोड हो रहा है…') : profile.name || t('Not signed in', 'साइन इन नहीं है')}</p>
@@ -127,18 +123,6 @@ function ProfileSection({ lang }: { lang: Lang }) {
         </button>
       </SectionCard>
 
-      {/* Danger Zone */}
-      <SectionCard title={t('Danger Zone', 'खतरनाक क्षेत्र')}>
-        <div className="flex items-center justify-between p-3 rounded-xl border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-950/10">
-          <div>
-            <p className="text-sm font-bold text-red-600">{t('Delete Account', 'अकाउंट हटाएं')}</p>
-            <p className="text-xs text-red-500/80">{t('Permanently delete your account and all data', 'अकाउंट और सभी डेटा स्थायी रूप से हटाएं')}</p>
-          </div>
-          <button className="flex items-center gap-1.5 text-xs font-bold text-red-600 border border-red-300 dark:border-red-800 px-3 py-1.5 rounded-xl hover:bg-red-100 dark:hover:bg-red-950/30 transition-all">
-            <Trash2 size={13} /> {t('Delete', 'हटाएं')}
-          </button>
-        </div>
-      </SectionCard>
     </div>
   );
 }
@@ -151,11 +135,22 @@ function NotificationsSection({ lang }: { lang: Lang }) {
     smsAlerts: true, emailDigest: false, pushNotifs: true,
     sevaPoints: true, providerArrival: true,
   });
-
-  const toggle = (key: keyof typeof notifs) => setNotifs(p => ({ ...p, [key]: !p[key] }));
+  const [notice, setNotice] = useState('');
+  useEffect(() => {
+    apiRequest<{ preferences: Partial<typeof notifs> }>('/preferences')
+      .then(({ preferences }) => setNotifs(current => ({ ...current, ...preferences })))
+      .catch(error => setNotice(error instanceof Error ? error.message : t('Sign in to sync notification settings.', 'सूचना सेटिंग सिंक करने के लिए साइन इन करें।')));
+  }, []);
+  const toggle = async (key: keyof typeof notifs) => {
+    const value = !notifs[key];
+    setNotifs(p => ({ ...p, [key]: value })); setNotice('');
+    try { await apiRequest('/preferences', { method: 'PATCH', body: JSON.stringify({ [key]: value }) }); }
+    catch (error) { setNotifs(p => ({ ...p, [key]: !value })); setNotice(error instanceof Error ? error.message : t('Could not save settings.', 'सेटिंग सहेजी नहीं जा सकी।')); }
+  };
 
   return (
     <div className="space-y-4">
+      {notice && <p role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">{notice}</p>}
       <SectionCard title={t('Push Notifications', 'पुश सूचनाएं')} desc={t('Control what alerts you receive on your device', 'अपने डिवाइस पर मिलने वाले अलर्ट नियंत्रित करें')}>
         {[
           { key: 'bookingUpdates' as const, label: t('Booking Updates', 'बुकिंग अपडेट'), desc: t('Status changes, provider arrival', 'स्थिति बदलाव, प्रदाता आगमन') },
@@ -188,29 +183,11 @@ function NotificationsSection({ lang }: { lang: Lang }) {
 // ─── Language Section ─────────────────────────────────────────────────────────
 function LanguageSection({ lang }: { lang: Lang }) {
   const t = (en: string, hi: string) => lang === 'hi' ? hi : en;
-  const [selectedLang, setSelectedLang] = useState('en');
-  const [selectedRegion, setSelectedRegion] = useState('IN-DL');
+  const [selectedLang, setSelectedLang] = useAppLanguage();
 
   const languages = [
     { code: 'en', name: 'English', native: 'English', flag: '🇬🇧' },
     { code: 'hi', name: 'Hindi', native: 'हिन्दी', flag: '🇮🇳' },
-    { code: 'bn', name: 'Bengali', native: 'বাংলা', flag: '🇮🇳' },
-    { code: 'te', name: 'Telugu', native: 'తెలుగు', flag: '🇮🇳' },
-    { code: 'mr', name: 'Marathi', native: 'मराठी', flag: '🇮🇳' },
-    { code: 'ta', name: 'Tamil', native: 'தமிழ்', flag: '🇮🇳' },
-    { code: 'gu', name: 'Gujarati', native: 'ગુજરાતી', flag: '🇮🇳' },
-    { code: 'kn', name: 'Kannada', native: 'ಕನ್ನಡ', flag: '🇮🇳' },
-  ];
-
-  const regions = [
-    { code: 'IN-DL', name: t('Delhi', 'दिल्ली') },
-    { code: 'IN-MH', name: t('Maharashtra', 'महाराष्ट्र') },
-    { code: 'IN-KA', name: t('Karnataka', 'कर्नाटक') },
-    { code: 'IN-TN', name: t('Tamil Nadu', 'तमिलनाडु') },
-    { code: 'IN-WB', name: t('West Bengal', 'पश्चिम बंगाल') },
-    { code: 'IN-GJ', name: t('Gujarat', 'गुजरात') },
-    { code: 'IN-UP', name: t('Uttar Pradesh', 'उत्तर प्रदेश') },
-    { code: 'IN-RJ', name: t('Rajasthan', 'राजस्थान') },
   ];
 
   return (
@@ -239,28 +216,11 @@ function LanguageSection({ lang }: { lang: Lang }) {
         <div className="flex items-start gap-2 p-3 rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/30">
           <Info size={14} className="text-blue-500 shrink-0 mt-0.5" />
           <p className="text-xs text-blue-600 dark:text-blue-400">
-            {t('Language change will apply after you restart the app.', 'भाषा परिवर्तन ऐप पुनः आरंभ करने के बाद लागू होगा।')}
+            {t('Language changes apply throughout the app immediately.', 'भाषा परिवर्तन तुरंत पूरे ऐप में लागू होता है।')}
           </p>
         </div>
       </SectionCard>
 
-      <SectionCard title={t('Region', 'क्षेत्र')} desc={t('Set your state for relevant government schemes and services', 'प्रासंगिक सरकारी योजनाओं और सेवाओं के लिए अपना राज्य सेट करें')}>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {regions.map(r => (
-            <button
-              key={r.code}
-              onClick={() => setSelectedRegion(r.code)}
-              className={`px-3 py-2 rounded-xl border text-xs font-semibold transition-all ${
-                selectedRegion === r.code
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
-              }`}
-            >
-              {r.name}
-            </button>
-          ))}
-        </div>
-      </SectionCard>
     </div>
   );
 }
@@ -268,10 +228,8 @@ function LanguageSection({ lang }: { lang: Lang }) {
 // ─── Appearance Section ───────────────────────────────────────────────────────
 function AppearanceSection({ lang }: { lang: Lang }) {
   const t = (en: string, hi: string) => lang === 'hi' ? hi : en;
-  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');
-  const [fontSize, setFontSize] = useState<'small' | 'medium' | 'large'>('medium');
-  const [compactMode, setCompactMode] = useState(false);
-  const [animations, setAnimations] = useState(true);
+  const [isDark, setDark] = useState(() => localStorage.getItem('seva-theme') === 'dark');
+  const changeTheme = (dark: boolean) => { setDark(dark); document.documentElement.classList.toggle('dark', dark); localStorage.setItem('seva-theme', dark ? 'dark' : 'light'); };
 
   return (
     <div className="space-y-4">
@@ -280,54 +238,26 @@ function AppearanceSection({ lang }: { lang: Lang }) {
           {([
             { id: 'light' as const, label: t('Light', 'लाइट'), icon: <Sun size={18} /> },
             { id: 'dark' as const, label: t('Dark', 'डार्क'), icon: <Moon size={18} /> },
-            { id: 'system' as const, label: t('System', 'सिस्टम'), icon: <Smartphone size={18} /> },
           ]).map(opt => (
             <button
               key={opt.id}
-              onClick={() => setTheme(opt.id)}
+              onClick={() => changeTheme(opt.id === 'dark')}
               className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${
-                theme === opt.id
+                (isDark ? 'dark' : 'light') === opt.id
                   ? 'border-primary bg-primary/10 text-primary'
                   : 'border-border text-muted-foreground hover:border-primary/40'
               }`}
             >
               {opt.icon}
               <span className="text-xs font-bold">{opt.label}</span>
-              {theme === opt.id && <Check size={12} className="text-primary" />}
+              {(isDark ? 'dark' : 'light') === opt.id && <Check size={12} className="text-primary" />}
             </button>
           ))}
         </div>
       </SectionCard>
 
-      <SectionCard title={t('Text Size', 'टेक्स्ट साइज़')}>
-        <div className="grid grid-cols-3 gap-2">
-          {([
-            { id: 'small' as const, label: t('Small', 'छोटा'), size: 'text-xs' },
-            { id: 'medium' as const, label: t('Medium', 'मध्यम'), size: 'text-sm' },
-            { id: 'large' as const, label: t('Large', 'बड़ा'), size: 'text-base' },
-          ]).map(opt => (
-            <button
-              key={opt.id}
-              onClick={() => setFontSize(opt.id)}
-              className={`py-3 rounded-xl border-2 font-bold transition-all ${opt.size} ${
-                fontSize === opt.id
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-border text-muted-foreground hover:border-primary/40'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </SectionCard>
-
-      <SectionCard title={t('Display Options', 'डिस्प्ले विकल्प')}>
-        <SettingRow label={t('Compact Mode', 'कॉम्पैक्ट मोड')} desc={t('Reduce spacing for more content on screen', 'स्क्रीन पर अधिक सामग्री के लिए स्पेसिंग कम करें')}>
-          <Toggle on={compactMode} onChange={setCompactMode} />
-        </SettingRow>
-        <SettingRow label={t('Animations', 'एनिमेशन')} desc={t('Enable smooth transitions and effects', 'स्मूद ट्रांज़िशन और इफेक्ट सक्षम करें')}>
-          <Toggle on={animations} onChange={setAnimations} />
-        </SettingRow>
+      <SectionCard title={t('Display', 'दिखावट')} desc={t('Theme is saved on this device.', 'थीम इस डिवाइस पर सहेजी जाती है।')}>
+        <SettingRow label={t('Dark mode', 'डार्क मोड')}><Toggle on={isDark} onChange={changeTheme} /></SettingRow>
       </SectionCard>
     </div>
   );
@@ -502,8 +432,18 @@ function PaymentsSection({ lang }: { lang: Lang }) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function SettingsPage() {
-  const [lang, setLang] = useState<Lang>('en');
+  const [lang, setLang] = useAppLanguage();
   const [activeSection, setActiveSection] = useState<Section>('profile');
+  const [account, setAccount] = useState({ name: 'User', city: 'India' });
+  const [notifications, setNotifications] = useState(0);
+  useEffect(() => {
+    apiRequest<{ user: { name?: string; city?: string } }>('/auth/me').then(({ user }) => {
+      setAccount({ name: user.name || 'User', city: user.city || 'India' });
+      localStorage.setItem('sevasetu-user-name', user.name || 'User');
+      localStorage.setItem('sevasetu-user-city', user.city || 'India');
+    }).catch(() => undefined);
+    apiRequest<{ bookings: Array<{ status: string }> }>('/bookings').then(({ bookings }) => setNotifications(bookings.filter(item => ['confirmed', 'assigned', 'in_progress'].includes(item.status)).length)).catch(() => undefined);
+  }, []);
 
   const navItems: NavItem[] = [
     { href: '/dashboard', label: 'Dashboard', labelHi: 'डैशबोर्ड', icon: <LayoutDashboard size={17} /> },
@@ -520,11 +460,11 @@ export default function SettingsPage() {
     <DashboardLayout
       navItems={navItems}
       userType="user"
-      userName="Priya Sharma"
-      userCity="New Delhi"
+      userName={account.name}
+      userCity={account.city}
       lang={lang}
       onLangToggle={() => setLang(l => l === 'en' ? 'hi' : 'en')}
-      notifications={2}
+      notifications={notifications}
     >
       <title>Settings – SevaSetu</title>
 
@@ -609,8 +549,7 @@ export default function SettingsPage() {
                 {activeSection === 'notifications' && <NotificationsSection lang={lang} />}
                 {activeSection === 'language'      && <LanguageSection lang={lang} />}
                 {activeSection === 'appearance'    && <AppearanceSection lang={lang} />}
-                {activeSection === 'security'      && <SecuritySection lang={lang} />}
-                {activeSection === 'payments'      && <PaymentsSection lang={lang} />}
+                {activeSection === 'payments' && <section className="rounded-2xl border border-border bg-background p-5"><p className="mb-4 text-sm text-muted-foreground">{lang === 'hi' ? 'बुकिंग इतिहास और भुगतान स्थिति देखें। सेवा के बाद प्रदाता को सीधे भुगतान करें।' : 'Review booking history and payment status. Pay providers directly after the service.'}</p><Link to="/payment" className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-white">{lang === 'hi' ? 'बुकिंग इतिहास खोलें' : 'Open booking history'} <ChevronRight size={14}/></Link></section>}
               </motion.div>
             </AnimatePresence>
           </div>

@@ -6,6 +6,8 @@ import {
   Sun, Moon, Globe
 } from 'lucide-react';
 import { useDarkMode } from '@/hooks/useDarkMode';
+import { apiRequest } from '@/lib/api-client';
+import { useAppLanguage } from '@/hooks/useAppLanguage';
 
 export interface NavItem {
   href: string;
@@ -63,12 +65,21 @@ export default function DashboardLayout({
   const location = useLocation();
   const navigate = useNavigate();
   const { isDark, toggle: toggleDark } = useDarkMode();
+  const [appLang, setAppLang] = useAppLanguage();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
   const initials = userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   const avatarColor = userType === 'provider' ? 'bg-secondary' : 'bg-primary';
+  const activeLang = lang || appLang;
+  const toggleLanguage = onLangToggle || (() => setAppLang(current => current === 'en' ? 'hi' : 'en'));
+  async function logout() {
+    try { await apiRequest('/auth/logout', { method: 'POST' }); } catch { /* Local sign-out still works if the API is offline. */ }
+    localStorage.removeItem('sevasetu-token');
+    window.dispatchEvent(new Event('sevasetu-auth-change'));
+    navigate('/');
+  }
 
   return (
     <div className="flex h-screen bg-muted/30 overflow-hidden">
@@ -182,7 +193,7 @@ export default function DashboardLayout({
             {!sidebarCollapsed && <span>{lang === 'hi' ? 'सेटिंग्स' : 'Settings'}</span>}
           </Link>
           <button
-            onClick={() => navigate('/')}
+            onClick={() => void logout()}
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all ${sidebarCollapsed ? 'justify-center' : ''}`}
           >
             <LogOut size={16} />
@@ -211,7 +222,7 @@ export default function DashboardLayout({
           <div className="flex items-center gap-2">
             {/* Lang toggle */}
             <button
-              onClick={onLangToggle}
+              onClick={toggleLanguage}
               className="hidden sm:flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-full border border-border text-muted-foreground hover:text-primary hover:border-primary/40 transition-all"
             >
               <Globe size={12} />
@@ -227,7 +238,7 @@ export default function DashboardLayout({
             </button>
 
             {/* Notifications */}
-            <button className="relative w-9 h-9 rounded-xl flex items-center justify-center border border-border text-muted-foreground hover:text-primary hover:border-primary/40 transition-all">
+            <button onClick={() => navigate(userType === 'provider' ? '/provider-dashboard' : '/tracker')} aria-label={lang === 'hi' ? 'बुकिंग अपडेट देखें' : 'View booking updates'} title={lang === 'hi' ? 'बुकिंग अपडेट देखें' : 'View booking updates'} className="relative w-9 h-9 rounded-xl flex items-center justify-center border border-border text-muted-foreground hover:text-primary hover:border-primary/40 transition-all">
               <Bell size={15} />
               {notifications > 0 && (
                 <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
@@ -266,7 +277,7 @@ export default function DashboardLayout({
                       <Link to="/settings" className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-all" onClick={() => setProfileOpen(false)}>
                         <Settings size={14} /> {lang === 'hi' ? 'सेटिंग्स' : 'Settings'}
                       </Link>
-                      <button onClick={() => { setProfileOpen(false); navigate('/'); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all">
+                      <button onClick={() => { setProfileOpen(false); void logout(); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all">
                         <LogOut size={14} /> {lang === 'hi' ? 'लॉगआउट' : 'Logout'}
                       </button>
                     </div>

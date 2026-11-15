@@ -4,10 +4,11 @@ import { motion, useInView } from 'motion/react';
 import { SmartImage } from '../components/ui/smart-image';
 import { imageSources } from '../lib/image-sources';
 import { useVoiceInput } from '../hooks/useVoiceInput';
+import { useAppLanguage } from '../hooks/useAppLanguage';
 import {
   Mic, MicOff, Search, ArrowRight, Star, MapPin, Shield, Zap, ChevronRight,
   Home, Leaf, Palette, Heart, BookOpen, Truck, AlertCircle, Building2,
-  MessageCircle, Globe, Award, TrendingUp, Users, CheckCircle, Phone
+  MessageCircle, Globe, Award, TrendingUp, Users, CheckCircle, Phone, Utensils, Scissors
 } from 'lucide-react';
 
 // ─── Language Context ────────────────────────────────────────────────────────
@@ -126,14 +127,14 @@ function RangoliShape({ className = '' }: { className?: string }) {
 
 // ─── Service Categories ───────────────────────────────────────────────────────
 const services = [
-  { icon: Home, label: 'Home Services', labelHi: 'घरेलू सेवाएं', count: '8,200+', color: 'bg-orange-50 text-orange-600 border-orange-200', size: 'lg' },
-  { icon: Leaf, label: 'Agriculture', labelHi: 'कृषि सेवाएं', count: '5,100+', color: 'bg-green-50 text-green-600 border-green-200', size: 'sm' },
-  { icon: Palette, label: 'Handicrafts', labelHi: 'हस्तशिल्प', count: '3,400+', color: 'bg-pink-50 text-pink-600 border-pink-200', size: 'sm' },
-  { icon: Heart, label: 'Healthcare', labelHi: 'स्वास्थ्य', count: '2,800+', color: 'bg-red-50 text-red-600 border-red-200', size: 'md' },
-  { icon: BookOpen, label: 'Education', labelHi: 'शिक्षा', count: '4,600+', color: 'bg-blue-50 text-blue-600 border-blue-200', size: 'md' },
-  { icon: Truck, label: 'Transport', labelHi: 'परिवहन', count: '6,300+', color: 'bg-yellow-50 text-yellow-600 border-yellow-200', size: 'sm' },
-  { icon: AlertCircle, label: 'Emergency', labelHi: 'आपातकाल', count: '1,200+', color: 'bg-red-50 text-red-700 border-red-300', size: 'sm' },
-  { icon: Building2, label: 'Govt. Help', labelHi: 'सरकारी सहायता', count: '900+', color: 'bg-indigo-50 text-indigo-600 border-indigo-200', size: 'lg' },
+  { icon: Home, label: 'Home Services', labelHi: 'घरेलू सेवाएं', category: 'home', color: 'bg-orange-50 text-orange-600 border-orange-200', size: 'lg' },
+  { icon: Leaf, label: 'Agriculture', labelHi: 'कृषि सेवाएं', category: 'agri', color: 'bg-green-50 text-green-600 border-green-200', size: 'sm' },
+  { icon: Palette, label: 'Handicrafts', labelHi: 'हस्तशिल्प', category: 'craft', color: 'bg-pink-50 text-pink-600 border-pink-200', size: 'sm' },
+  { icon: Utensils, label: 'Food', labelHi: 'खाना', category: 'food', color: 'bg-red-50 text-red-600 border-red-200', size: 'md' },
+  { icon: BookOpen, label: 'Education', labelHi: 'शिक्षा', category: 'edu', color: 'bg-blue-50 text-blue-600 border-blue-200', size: 'md' },
+  { icon: Truck, label: 'Transport', labelHi: 'परिवहन', category: 'transport', color: 'bg-yellow-50 text-yellow-600 border-yellow-200', size: 'sm' },
+  { icon: Scissors, label: 'Beauty', labelHi: 'सौंदर्य', category: 'beauty', color: 'bg-red-50 text-red-700 border-red-300', size: 'sm' },
+  { icon: Zap, label: 'All services', labelHi: 'सभी सेवाएं', category: 'all', color: 'bg-indigo-50 text-indigo-600 border-indigo-200', size: 'lg' },
 ];
 
 // ─── Government Schemes ───────────────────────────────────────────────────────
@@ -173,7 +174,7 @@ const schemes = [
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function HomePage() {
   const navigate = useNavigate();
-  const [lang, setLang] = useState<'en' | 'hi'>('en');
+  const [lang, setLang] = useAppLanguage();
   const [searchQuery, setSearchQuery] = useState('');
   const { voiceState, isSupported, startListening, stopListening } = useVoiceInput({
     lang,
@@ -413,8 +414,8 @@ export default function HomePage() {
               const Icon = service.icon;
               const isLarge = service.size === 'lg';
               return (
+                <Link key={service.category} to={`/services?category=${service.category}`} aria-label={`${lang === 'hi' ? service.labelHi : service.label} — ${lang === 'hi' ? 'सेवाएं देखें' : 'Browse services'}`} className="block rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2">
                 <motion.div
-                  key={i}
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
@@ -430,11 +431,12 @@ export default function HomePage() {
                   <h3 className={`font-bold text-gray-800 leading-tight ${isLarge ? 'text-lg' : 'text-sm'}`}>
                     {lang === 'hi' ? service.labelHi : service.label}
                   </h3>
-                  <p className="text-xs text-gray-500 mt-1">{service.count} {lang === 'hi' ? 'प्रदाता' : 'providers'}</p>
+                  <p className="text-xs text-gray-500 mt-1">{lang === 'hi' ? 'सेवाएं देखें' : 'Browse services'}</p>
                   <div className="mt-3 flex items-center gap-1 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
                     {lang === 'hi' ? 'देखें' : 'Explore'} <ChevronRight size={12} />
                   </div>
                 </motion.div>
+                </Link>
               );
             })}
           </div>
@@ -661,8 +663,10 @@ export default function HomePage() {
                     placeholder={lang === 'hi' ? 'संदेश लिखें...' : 'Type a message...'}
                     className="flex-1 text-xs bg-muted rounded-full px-3 py-2 outline-none"
                     readOnly
+                    aria-label={lang === 'hi' ? 'AI चैट खोलें' : 'Open AI chat'}
+                    onClick={() => navigate('/assistant')}
                   />
-                  <button className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                  <button type="button" onClick={() => navigate('/assistant')} aria-label={lang === 'hi' ? 'आवाज़ सहायक खोलें' : 'Open voice assistant'} className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
                     <Mic size={13} className="text-white" />
                   </button>
                 </div>
@@ -906,11 +910,11 @@ export default function HomePage() {
                 <ArrowRight size={18} />
               </Link>
               <Link
-                to="/app"
+                to="/assistant"
                 className="flex items-center justify-center gap-2 px-8 py-4 rounded-full border-2 border-white/50 text-white font-bold text-base hover:bg-white/10 transition-all duration-200"
               >
                 <Phone size={18} />
-                {tx.ctaApp}
+                {lang === 'hi' ? 'AI सहायक से बात करें' : 'Talk to the AI assistant'}
               </Link>
             </motion.div>
 

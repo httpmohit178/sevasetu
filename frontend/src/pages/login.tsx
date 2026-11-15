@@ -6,6 +6,7 @@ import {
   Globe, Zap, Star, Users, RefreshCw
 } from 'lucide-react';
 import { apiRequest } from '../lib/api-client';
+import { useAppLanguage } from '../hooks/useAppLanguage';
 import { SceneCard } from '../components/ui/scene-card';
 import { PhotoBanner } from '../components/ui/photo-banner';
 
@@ -66,8 +67,9 @@ function Countdown({ seconds, onEnd }: { seconds: number; onEnd: () => void }) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function LoginPage() {
-  const [lang, setLang] = useState<Lang>('en');
-  const [step, setStep] = useState<Step>('phone');
+  const [lang, setLang] = useAppLanguage();
+  // Start on the direct email form so a normal sign-in is one screen.
+  const [step, setStep] = useState<Step>('email');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [emailPassword, setEmailPassword] = useState('');
@@ -147,7 +149,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-background flex">
       <title>Login – SevaSetu | Sign in to Your Account</title>
-      <meta name="description" content="Sign in to SevaSetu with your mobile number. Book services, track orders, earn rewards." />
+      <meta name="description" content="Sign in or create a SevaSetu account with email and password, or use phone OTP." />
 
       {/* ── Left Panel (desktop) ───────────────────────────────────────────── */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-secondary via-secondary/90 to-primary flex-col justify-between p-12">
@@ -345,9 +347,6 @@ export default function LoginPage() {
             {/* ── STEP: Email sign-in / registration ───────────────────── */}
             {step === 'email' && (
               <motion.div key="email" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}>
-                <button type="button" onClick={() => { setAuthError(''); setStep('phone'); }} className="mb-4 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-                  <ArrowLeft size={15} /> {lang === 'hi' ? 'वापस' : 'Back'}
-                </button>
                 <h1 className="mb-1 text-2xl font-bold text-foreground">
                   {emailMode === 'login' ? (lang === 'hi' ? 'ईमेल से साइन इन करें' : 'Sign in with email') : (lang === 'hi' ? 'अपना खाता बनाएं' : 'Create your account')}
                 </h1>
@@ -377,6 +376,9 @@ export default function LoginPage() {
                     {emailMode === 'login' ? (lang === 'hi' ? 'खाता बनाएं' : 'Create an account') : (lang === 'hi' ? 'साइन इन करें' : 'Sign in')}
                   </button>
                 </p>
+                <button type="button" onClick={() => { setAuthError(''); setStep('phone'); }} className="mt-4 flex w-full items-center justify-center gap-2 rounded-full border border-border py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary">
+                  <Phone size={14} /> {lang === 'hi' ? 'फोन OTP से जारी रखें' : 'Continue with phone OTP'}
+                </button>
               </motion.div>
             )}
 
@@ -503,11 +505,11 @@ export default function LoginPage() {
                   {lang === 'hi' ? 'लॉगिन सफल! 🎉' : 'Login Successful! 🎉'}
                 </h2>
                 <p className="text-muted-foreground text-sm mb-4">
-                  {lang === 'hi' ? 'होम पेज पर जा रहे हैं...' : 'Redirecting to home...'}
+                  {lang === 'hi' ? 'आपके पेज पर जा रहे हैं...' : 'Taking you to your page...'}
                 </p>
                 <div className="bg-primary/10 rounded-xl p-3 flex items-center justify-center gap-2">
                   <Zap size={16} className="text-primary" />
-                  <span className="text-primary font-bold text-sm">+50 SevaPoints {lang === 'hi' ? 'मिले!' : 'credited!'}</span>
+                  <span className="text-primary font-bold text-sm">{lang === 'hi' ? 'आपका खाता तैयार है' : 'Your account is ready'}</span>
                 </div>
               </motion.div>
             )}
