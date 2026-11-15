@@ -83,7 +83,11 @@ function StepBar({ current, lang }: { current: Step; lang: Lang }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function JoinPage() {
   const [lang, setLang] = useAppLanguage();
-  const [step, setStep] = useState<Step>('intro');
+  const [step, setStep] = useState<Step>(() => {
+    const startApplication = new URLSearchParams(window.location.search).get('start') === 'application';
+    const isProviderSession = Boolean(localStorage.getItem('sevasetu-token')) && localStorage.getItem('sevasetu-role') === 'provider';
+    return startApplication && isProviderSession ? 'personal' : 'intro';
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const navigate = useNavigate();

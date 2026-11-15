@@ -94,13 +94,15 @@ export default function LoginPage() {
     else if (requestedType === 'customer' || redirectPath) setAccountType('customer');
   }, [location.state, redirectPath]);
   const navigateAfterLogin = async (role?: string) => {
-    if (redirectPath) { navigate(redirectPath, { replace: true }); return; }
     if (role === 'provider') {
       try {
         const { provider } = await apiRequest<{ provider: unknown }>('/providers/me');
-        navigate(provider ? '/provider-dashboard' : '/join', { replace: true });
-      } catch { navigate('/join', { replace: true }); }
-    } else navigate('/dashboard', { replace: true });
+        if (provider) { navigate('/provider-dashboard', { replace: true }); return; }
+      } catch { /* The application route can explain the connection issue and retry. */ }
+      navigate('/join?start=application', { replace: true });
+      return;
+    }
+    navigate(redirectPath && redirectPath !== '/join' ? redirectPath : '/dashboard', { replace: true });
   };
 
   const handleEmailSubmit = async (event: FormEvent<HTMLFormElement>) => {

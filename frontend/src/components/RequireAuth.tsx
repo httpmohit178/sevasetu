@@ -49,7 +49,7 @@ export default function RequireAuth({ children, role }: { children: ReactNode; r
 
   if (decision === 'checking') return <div className="grid min-h-[50vh] place-items-center"><Spinner /></div>;
   if (decision === 'anonymous') return <Navigate to="/login" state={{ from: location.pathname, accountType: role || 'customer' }} replace />;
-  if (decision === 'provider-profile') return <Navigate to="/join" replace />;
+  if (decision === 'provider-profile') return <Navigate to="/join?start=application" replace />;
   if (decision === 'wrong-role') return <Navigate to={localStorage.getItem('sevasetu-role') === 'provider' ? '/provider-dashboard' : '/dashboard'} replace />;
   return <>{children}</>;
 }

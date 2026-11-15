@@ -285,7 +285,9 @@ export default function AIAssistantPage() {
   const [pendingProvider, setPendingProvider] = useState<Provider | null>(null);
   const [actionError, setActionError] = useState('');
   const [voiceError, setVoiceError] = useState('');
+  const [voiceNotice, setVoiceNotice] = useState('');
   const [aiStatus, setAiStatus] = useState<'checking' | 'configured' | 'builtin' | 'offline'>('checking');
+  const sendingRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const speechSupported = typeof window !== 'undefined' && 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined';
@@ -296,8 +298,9 @@ export default function AIAssistantPage() {
     onError: setVoiceError,
     onResult: (text) => {
       setVoiceError('');
+      setVoiceNotice(lang === 'hi' ? 'आवाज़ का पाठ तैयार है। जांचें और भेजें दबाएं।' : 'Voice text is ready. Review it, then tap Send.');
       setInputText(text);
-      setTimeout(() => handleSend(text), 300);
+      window.requestAnimationFrame(() => inputRef.current?.focus());
     },
   });
 
@@ -328,8 +331,11 @@ export default function AIAssistantPage() {
 
   // ── Send message ────────────────────────────────────────────────────────
   const handleSend = useCallback(async (text?: string) => {
-    const messageText = (text || inputText).trim();
-    if (!messageText) return;
+    const messageText = (text ?? inputText).trim();
+    if (!messageText || sendingRef.current) return;
+    sendingRef.current = true;
+    setVoiceNotice('');
+    setVoiceError('');
 
     const userMsg: AIMessage = {
       id: `user_${Date.now()}`,
@@ -343,8 +349,9 @@ export default function AIAssistantPage() {
     setInputText('');
     setIsTyping(true);
 
-    const response = getAIResponse(messageText, messages, lang, pendingProvider);
+    let response: AIMessage;
     try {
+      response = getAIResponse(messageText, messages, lang, pendingProvider);
       if (response.type === 'providers' && response.serviceId) {
         try {
           const result = await apiRequest<{ providers: Provider[] }>(`/providers?serviceId=${encodeURIComponent(response.serviceId)}`);
@@ -373,7 +380,15 @@ export default function AIAssistantPage() {
           }
         } catch { /* Keep the built-in bilingual assistant available when the AI service is offline. */ }
       }
+    } catch {
+      response = {
+        id: `assistant_${Date.now()}`, role: 'assistant',
+        content: 'I could not process that message. Please try again, or open the services list.',
+        contentHi: 'आपका संदेश समझने में समस्या हुई। फिर कोशिश करें या सेवा सूची खोलें।',
+        timestamp: new Date(), type: 'text',
+      };
     } finally {
+      sendingRef.current = false;
       setIsTyping(false);
     }
     setMessages(prev => [...prev, response]);
@@ -733,6 +748,8 @@ export default function AIAssistantPage() {
                 <button
                   onClick={isVoiceActive ? stopListening : startListening}
                   disabled={!isSupported || voiceState === 'processing'}
+                  aria-label={isVoiceActive ? (lang === 'hi' ? 'रिकॉर्डिंग रोकें' : 'Stop voice recording') : (lang === 'hi' ? 'आवाज़ से संदेश लिखें' : 'Enter message by voice')}
+                  title={isVoiceActive ? (lang === 'hi' ? 'रिकॉर्डिंग रोकें' : 'Stop recording') : (lang === 'hi' ? 'आवाज़ से संदेश लिखें' : 'Enter message by voice')}
                   className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shrink-0 ${
                     isVoiceActive
                       ? 'bg-red-500 text-white animate-pulse'
@@ -750,7 +767,7 @@ export default function AIAssistantPage() {
                   type="text"
                   value={inputText}
                   onChange={e => setInputText(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
+                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && !isTyping && handleSend()}
                   placeholder={
                     isVoiceActive
                       ? (lang === 'hi' ? '🎤 सुन रहा हूं...' : '🎤 Listening...')
@@ -768,6 +785,8 @@ export default function AIAssistantPage() {
                   <Send size={15} />
                 </button>
               </div>
+
+              {voiceNotice && <p role="status" className="mt-2 text-center text-xs font-medium text-primary">{voiceNotice}</p>}
 
               <p className="text-[10px] text-muted-foreground text-center mt-2">
                 {lang === 'hi'
