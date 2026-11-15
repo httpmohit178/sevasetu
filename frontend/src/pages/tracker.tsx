@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, Clock, MapPin, Navigation, Phone, RefreshCw, Star, UserRound, XCircle } from 'lucide-react';
 import { apiRequest } from '../lib/api-client';
 import { PhotoBanner } from '../components/ui/photo-banner';
-import { imageSources } from '../lib/image-sources';
 
 type Lang = 'en' | 'hi';
 type Point = { latitude: number; longitude: number; updatedAt?: string };
@@ -113,7 +112,7 @@ export default function TrackerPage() {
         </div>
       </div>
     </header>
-    <div className="container mx-auto max-w-5xl px-4 pt-5"><PhotoBanner src={imageSources.streets} alt="City skyline and buildings" caption="City skyline and buildings" /></div>
+    <div className="container mx-auto max-w-5xl px-4 pt-5"><PhotoBanner scene="gps" alt="Animated map pin for live booking tracking" caption="Live GPS tracking for your booking" /></div>
     <main className="container mx-auto max-w-5xl px-4 py-6">
       {!hasSession && <div role="status" className="mb-5 rounded-2xl border border-primary/20 bg-primary/5 p-6 text-center"><h2 className="font-bold">{t('Sign in to see your bookings', 'अपनी बुकिंग देखने के लिए साइन इन करें')}</h2><p className="my-2 text-sm text-muted-foreground">{t('You can browse services and schemes without an account. Sign in to view booking details and live provider locations.', 'आप बिना खाते के सेवाएं और योजनाएं देख सकते हैं। बुकिंग और लाइव लोकेशन देखने के लिए साइन इन करें।')}</p><Link to="/login" state={{ from: '/tracker' }} className="inline-block rounded-full bg-primary px-5 py-2 text-sm font-bold text-white">{t('Sign in', 'साइन इन')}</Link></div>}
       {error && hasSession && <p role="alert" className="mb-4 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800">{error}</p>}

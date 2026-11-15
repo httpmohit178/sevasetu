@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, useInView } from 'motion/react';
 import { SmartImage } from '../components/ui/smart-image';
 import { imageSources } from '../lib/image-sources';
+import { useVoiceInput } from '../hooks/useVoiceInput';
 import {
-  Mic, Search, ArrowRight, Star, MapPin, Shield, Zap, ChevronRight,
+  Mic, MicOff, Search, ArrowRight, Star, MapPin, Shield, Zap, ChevronRight,
   Home, Leaf, Palette, Heart, BookOpen, Truck, AlertCircle, Building2,
   MessageCircle, Globe, Award, TrendingUp, Users, CheckCircle, Phone
 } from 'lucide-react';
@@ -171,15 +172,15 @@ const schemes = [
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function HomePage() {
+  const navigate = useNavigate();
   const [lang, setLang] = useState<'en' | 'hi'>('en');
-  const [isListening, setIsListening] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const { voiceState, isSupported, startListening, stopListening } = useVoiceInput({
+    lang,
+    onResult: (text) => { setSearchQuery(text); navigate(`/services?search=${encodeURIComponent(text)}`); },
+  });
+  const isListening = voiceState === 'listening';
   const tx = t[lang];
-
-  const handleVoiceSearch = () => {
-    setIsListening(true);
-    setTimeout(() => setIsListening(false), 3000);
-  };
 
   const fadeUp = {
     hidden: { opacity: 0, y: 30 },
@@ -325,14 +326,16 @@ export default function HomePage() {
                       className="flex-1 text-sm bg-transparent outline-none text-foreground placeholder:text-muted-foreground/60"
                     />
                     <button
-                      onClick={handleVoiceSearch}
+                      onClick={isListening ? stopListening : startListening}
+                      disabled={!isSupported}
+                      aria-label={isListening ? (lang === 'hi' ? 'आवाज़ सुनना बंद करें' : 'Stop voice search') : (lang === 'hi' ? 'आवाज़ से खोजें' : 'Search by voice')}
                       className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
                         isListening
                           ? 'bg-red-500 text-white animate-pulse'
-                          : 'bg-primary text-white hover:bg-primary/90'
+                          : 'bg-primary text-white hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50'
                       }`}
                     >
-                      <Mic size={14} />
+                      {isListening ? <MicOff size={14} /> : <Mic size={14} />}
                     </button>
                   </div>
                   {isListening && (
@@ -340,6 +343,7 @@ export default function HomePage() {
                       🎤 {lang === 'hi' ? 'सुन रहा हूं...' : 'Listening...'}
                     </p>
                   )}
+                  {voiceState === 'error' && <p role="status" className="mt-1 text-center text-xs text-amber-700">{lang === 'hi' ? 'माइक की अनुमति दें और फिर कोशिश करें।' : 'Allow microphone access and try again.'}</p>}
                 </motion.div>
               </motion.div>
             </div>

@@ -37,7 +37,18 @@ if (database) {
   try { store = { ...seed, ...JSON.parse(await readFile(DATA_FILE, "utf8")) }; }
   catch (error) { if (error.code !== "ENOENT") throw error; store = structuredClone(seed); }
 }
-for (const user of store.users) { user.points ??= 0; user.rewardHistory ??= []; user.lastCheckIn ??= null; }
+function ensureRewards(user) {
+  user.points ??= 0;
+  user.rewardHistory ??= [];
+  user.lastCheckIn ??= null;
+  if (!user.welcomeGranted && user.points === 0 && user.rewardHistory.length === 0) {
+    user.points = 100;
+    user.welcomeGranted = true;
+    user.rewardHistory.unshift({ id: randomUUID(), points: 100, label: "Welcome bonus", labelHi: "स्वागत बोनस", createdAt: new Date().toISOString() });
+  }
+  return user;
+}
+for (const user of store.users) ensureRewards(user);
 let writeQueue = Promise.resolve();
 async function persist() {
   const snapshot = JSON.stringify(store, null, 2);
@@ -127,12 +138,44 @@ async function checkTwilioCode(phone, code) {
   return (await response.json()).status === "approved";
 }
 const services = [
-  ["plumbing", "Plumbing", 299], ["electrical", "Electrical", 349], ["cleaning", "Cleaning", 249],
-  ["painting", "Painting", 499], ["carpentry", "Carpentry", 399], ["cooking", "Cooking", 299],
-  ["tutoring", "Tutoring", 399], ["driving", "Driving", 299], ["beauty", "Beauty & Salon", 299],
-  ["ac", "AC Repair", 499], ["gardening", "Gardening", 249], ["security", "Security", 499],
-].map(([id, name, startingPrice]) => ({ id, name, startingPrice }));
-const serviceHindi = { plumbing: "प्लंबिंग", electrical: "इलेक्ट्रिकल", cleaning: "सफाई", painting: "पेंटिंग", carpentry: "बढ़ईगीरी", cooking: "खाना पकाना", tutoring: "ट्यूटरिंग", driving: "ड्राइविंग", beauty: "ब्यूटी और सैलून", ac: "AC मरम्मत", gardening: "बागवानी", security: "सुरक्षा" };
+  { id: "crop", name: "Crop Advisory", startingPrice: 199, category: "agri", area: "rural" },
+  { id: "soil", name: "Soil Testing", startingPrice: 249, category: "agri", area: "rural" },
+  { id: "tractor", name: "Tractor & Equipment", startingPrice: 499, category: "agri", area: "rural" },
+  { id: "dairy", name: "Dairy Support", startingPrice: 249, category: "agri", area: "rural" },
+  { id: "veterinary", name: "Veterinary Visit", startingPrice: 399, category: "agri", area: "rural" },
+  { id: "pump", name: "Water Pump Repair", startingPrice: 349, category: "home", area: "rural" },
+  { id: "solar", name: "Solar Setup", startingPrice: 799, category: "home", area: "rural" },
+  { id: "handicraft", name: "Handicrafts", startingPrice: 299, category: "craft", area: "rural" },
+  { id: "biogas", name: "Biogas Service", startingPrice: 449, category: "agri", area: "rural" },
+  { id: "gardening", name: "Gardening", startingPrice: 249, category: "agri", area: "rural" },
+  { id: "plumbing", name: "Plumbing", startingPrice: 299, category: "home", area: "urban" },
+  { id: "electrical", name: "Electrical", startingPrice: 349, category: "home", area: "urban" },
+  { id: "cleaning", name: "Cleaning", startingPrice: 249, category: "home", area: "urban" },
+  { id: "painting", name: "Painting", startingPrice: 499, category: "home", area: "urban" },
+  { id: "carpentry", name: "Carpentry", startingPrice: 399, category: "home", area: "urban" },
+  { id: "cooking", name: "Cooking", startingPrice: 299, category: "food", area: "urban" },
+  { id: "tutoring", name: "Tutoring", startingPrice: 399, category: "edu", area: "urban" },
+  { id: "driving", name: "Driving", startingPrice: 299, category: "transport", area: "urban" },
+  { id: "beauty", name: "Beauty & Salon", startingPrice: 299, category: "beauty", area: "urban" },
+  { id: "ac", name: "AC Repair", startingPrice: 499, category: "home", area: "urban" },
+  { id: "security", name: "Security", startingPrice: 499, category: "home", area: "urban" },
+];
+const serviceHindi = { crop: "फसल सलाह", soil: "मिट्टी जांच", tractor: "ट्रैक्टर और उपकरण", dairy: "डेयरी सहायता", veterinary: "पशु चिकित्सा", pump: "पानी पंप मरम्मत", solar: "सोलर सेटअप", handicraft: "हस्तशिल्प", biogas: "बायोगैस सेवा", gardening: "बागवानी", plumbing: "प्लंबिंग", electrical: "इलेक्ट्रिकल", cleaning: "सफाई", painting: "पेंटिंग", carpentry: "बढ़ईगीरी", cooking: "खाना पकाना", tutoring: "ट्यूटरिंग", driving: "ड्राइविंग", beauty: "ब्यूटी और सैलून", ac: "AC मरम्मत", security: "सुरक्षा" };
+const demoProviders = [
+  { id: "demo-ramesh", userId: "demo-ramesh-user", name: "Ramesh Patel", phone: "+919811110001", city: "Anand", skills: ["crop", "soil", "tractor", "gardening", "pump"], area: "rural" },
+  { id: "demo-sunita", userId: "demo-sunita-user", name: "Sunita Devi", phone: "+919811110002", city: "Varanasi", skills: ["handicraft", "dairy", "cooking", "biogas"], area: "rural" },
+  { id: "demo-amit", userId: "demo-amit-user", name: "Amit Sharma", phone: "+919811110003", city: "Pune", skills: ["plumbing", "electrical", "ac", "carpentry"], area: "urban" },
+  { id: "demo-neha", userId: "demo-neha-user", name: "Neha Kapoor", phone: "+919811110004", city: "Delhi", skills: ["cleaning", "beauty", "tutoring", "security"], area: "urban" },
+  { id: "demo-imran", userId: "demo-imran-user", name: "Imran Khan", phone: "+919811110005", city: "Lucknow", skills: ["driving", "painting", "veterinary", "solar"], area: "rural" },
+];
+let seededProviders = false;
+for (const demo of demoProviders) {
+  if (!store.providers.some((item) => item.id === demo.id)) {
+    store.providers.push({ ...demo, status: "verified", online: true, experience: 4, address: demo.city, createdAt: new Date().toISOString() });
+    seededProviders = true;
+  }
+}
+if (seededProviders || store.users.length) await persist();
 function bookingView(booking, viewerId) {
   const provider = store.providers.find((item) => item.userId === booking.providerUserId);
   return { ...booking, providerName: provider?.name || null, providerPhone: provider && viewerId === booking.customerId ? provider.phone : null };
@@ -155,8 +198,7 @@ const server = createServer(async (req, res) => {
       return json(res, 200, { status: "ok", database: database ? "postgresql" : "local-file", ai: GROQ_API_KEY ? "groq" : process.env.OPENAI_API_KEY ? "openai" : "builtin", time: new Date().toISOString() });
     }
     if (req.method === "GET" && path === "/api/services") {
-      const category = { plumbing: "home", electrical: "home", cleaning: "home", painting: "home", carpentry: "home", cooking: "food", tutoring: "edu", driving: "transport", beauty: "beauty", ac: "home", gardening: "agri", security: "home" };
-      return json(res, 200, { services: services.map((item) => ({ ...item, nameHi: serviceHindi[item.id], category: category[item.id], onlineProviders: store.providers.filter((provider) => provider.online && provider.skills.includes(item.id)).length })) });
+      return json(res, 200, { services: services.map((item) => ({ ...item, nameHi: serviceHindi[item.id], onlineProviders: store.providers.filter((provider) => provider.online && provider.skills.includes(item.id)).length })) });
     }
     if (req.method === "POST" && path === "/api/ai/reply") {
       const data = await body(req);
@@ -203,7 +245,7 @@ const server = createServer(async (req, res) => {
       else { const challenge = store.otp.find((item) => item.phone === phone && item.expiresAt > Date.now()); valid = Boolean(challenge && challenge.code === code); store.otp = store.otp.filter((item) => item.phone !== phone); }
       if (!valid) return json(res, 401, { error: "The code is invalid or expired" });
       let user = store.users.find((item) => item.phone === phone);
-      if (!user) { user = { id: randomUUID(), phone, name: String(data.name || "").trim(), city: String(data.city || "").trim(), role: "customer", createdAt: new Date().toISOString() }; store.users.push(user); }
+      if (!user) { user = ensureRewards({ id: randomUUID(), phone, name: String(data.name || "").trim(), city: String(data.city || "").trim(), role: "customer", createdAt: new Date().toISOString() }); store.users.push(user); }
       else { if (data.name) user.name = String(data.name).trim(); if (data.city) user.city = String(data.city).trim(); }
       const token = tokenFor(user.id); store.sessions = store.sessions.filter((item) => item.userId !== user.id);
       store.sessions.push({ id: token, userId: user.id, expiresAt: Date.now() + 30 * 24 * 60 * 60_000 }); await persist();
@@ -220,7 +262,7 @@ const server = createServer(async (req, res) => {
       if (store.users.some((item) => item.email === email)) return json(res, 409, { error: "An account with this email already exists. Sign in instead." });
       const phone = data.phone ? normalizePhone(data.phone) : "";
       if (phone && phone.replace(/\D/g, "").length < 10) return json(res, 400, { error: "Enter a valid phone number" });
-      const user = { id: randomUUID(), name, email, phone, city: String(data.city || "").trim().slice(0, 100), role: "customer", passwordHash: passwordDigest(password), createdAt: new Date().toISOString() };
+      const user = ensureRewards({ id: randomUUID(), name, email, phone, city: String(data.city || "").trim().slice(0, 100), role: "customer", passwordHash: passwordDigest(password), createdAt: new Date().toISOString() });
       store.users.push(user);
       const token = await createSession(user);
       return json(res, 201, { token, user: publicUser(user) });
@@ -237,9 +279,9 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && path === "/api/auth/me") { const user = requireUser(req, res); return user ? json(res, 200, { user: publicUser(user) }) : undefined; }
     if (req.method === "PATCH" && path === "/api/auth/profile") { const user = requireUser(req, res); if (!user) return; const data = await body(req); if (data.name !== undefined) user.name = String(data.name).trim().slice(0, 100); if (data.city !== undefined) user.city = String(data.city).trim().slice(0, 100); if (!user.name) return json(res, 400, { error: "Name is required" }); await persist(); return json(res, 200, { user: publicUser(user) }); }
     if (req.method === "POST" && path === "/api/auth/logout") { const user = requireUser(req, res); if (!user) return; const token = req.headers.authorization?.replace(/^Bearer\s+/i, ""); store.sessions = store.sessions.filter((item) => item.id !== token); await persist(); return json(res, 200, { ok: true }); }
-    if (req.method === "GET" && path === "/api/rewards") { const user = requireUser(req, res); if (!user) return; return json(res, 200, { points: user.points || 0, history: user.rewardHistory || [], lastCheckIn: user.lastCheckIn || null }); }
+    if (req.method === "GET" && path === "/api/rewards") { const user = requireUser(req, res); if (!user) return; ensureRewards(user); await persist(); return json(res, 200, { points: user.points || 0, history: user.rewardHistory || [], lastCheckIn: user.lastCheckIn || null }); }
     if (req.method === "POST" && path === "/api/rewards/check-in") { const user = requireUser(req, res); if (!user) return; const today = new Date().toISOString().slice(0, 10); if (user.lastCheckIn === today) return json(res, 409, { error: "You already checked in today" }); user.lastCheckIn = today; user.points = (user.points || 0) + 5; user.rewardHistory ||= []; user.rewardHistory.unshift({ id: randomUUID(), points: 5, label: "Daily check-in", labelHi: "दैनिक चेक-इन", createdAt: new Date().toISOString() }); await persist(); return json(res, 200, { points: user.points, lastCheckIn: today }); }
-    if (req.method === "POST" && path === "/api/rewards/redeem") { const user = requireUser(req, res); if (!user) return; const data = await body(req); const points = Number(data.points); if (![500, 1000, 2000].includes(points)) return json(res, 400, { error: "Choose a listed reward" }); if ((user.points || 0) < points) return json(res, 409, { error: "Not enough points" }); user.points -= points; const code = `SEVA-${randomUUID().slice(0, 8).toUpperCase()}`; user.rewardHistory ||= []; user.rewardHistory.unshift({ id: randomUUID(), points: -points, label: `Redeemed ₹${points / 10} service credit (${code})`, labelHi: `₹${points / 10} सेवा क्रेडिट रिडीम (${code})`, createdAt: new Date().toISOString() }); await persist(); return json(res, 200, { points: user.points, code, value: points / 10 }); }
+    if (req.method === "POST" && path === "/api/rewards/redeem") { const user = requireUser(req, res); if (!user) return; const data = await body(req); const points = Number(data.points); if (![100, 500, 1000, 2000].includes(points)) return json(res, 400, { error: "Choose a listed reward" }); if ((user.points || 0) < points) return json(res, 409, { error: "Not enough points" }); user.points -= points; const code = `SEVA-${randomUUID().slice(0, 8).toUpperCase()}`; user.rewardHistory ||= []; user.rewardHistory.unshift({ id: randomUUID(), points: -points, label: `Redeemed ₹${points / 10} service credit (${code})`, labelHi: `₹${points / 10} सेवा क्रेडिट रिडीम (${code})`, createdAt: new Date().toISOString() }); await persist(); return json(res, 200, { points: user.points, code, value: points / 10 }); }
     if (req.method === "POST" && path === "/api/schemes/applications") { const user = requireUser(req, res); if (!user) return; const data = await body(req); if (!String(data.schemeId || "").trim() || !String(data.name || "").trim() || phoneNumber(data.phone).replace(/\D/g, "").length < 10) return json(res, 400, { error: "Scheme, name, and valid phone number are required" }); const application = { id: randomUUID(), userId: user.id, schemeId: String(data.schemeId).slice(0, 100), name: String(data.name).trim().slice(0, 100), phone: normalizePhone(data.phone), status: "submitted", createdAt: new Date().toISOString() }; store.schemeApplications.push(application); await persist(); return json(res, 201, { application }); }
     if (req.method === "POST" && path === "/api/providers") {
       const user = requireUser(req, res); if (!user) return;
@@ -272,9 +314,10 @@ const server = createServer(async (req, res) => {
       const booking = { id: `SVS-${randomUUID().slice(0, 8).toUpperCase()}`, customerId: user.id, serviceId: service.id, serviceName: service.name, scheduledAt: data.scheduledAt || null, address: String(data.address || "").trim(), amount: service.startingPrice, paymentMethod: data.paymentMethod === "cod" ? "cod" : null, paymentStatus: data.paymentMethod === "cod" ? "pending" : "unpaid", status: "confirmed", providerUserId: null, preferredProviderId: requestedProvider?.id || null, providerLocation: null, events: [{ status: "confirmed", at: new Date().toISOString() }], createdAt: new Date().toISOString() };
       store.bookings.unshift(booking); await persist(); return json(res, 201, { booking });
     }
-    const bookingMatch = path.match(/^\/api\/bookings\/([^/]+)(?:\/(accept|location|review))?$/);
+    const bookingMatch = path.match(/^\/api\/bookings\/([^/]+)(?:\/(accept|location|customer-location|review))?$/);
     if (bookingMatch && req.method === "GET") { const user = requireUser(req, res); if (!user) return; const booking = store.bookings.find((item) => item.id === bookingMatch[1] && (item.customerId === user.id || item.providerUserId === user.id)); return booking ? json(res, 200, { booking: bookingView(booking, user.id) }) : json(res, 404, { error: "Booking not found" }); }
     if (bookingMatch && req.method === "POST" && bookingMatch[2] === "accept") { const user = requireUser(req, res); if (!user) return; const booking = store.bookings.find((item) => item.id === bookingMatch[1]); const provider = store.providers.find((item) => item.userId === user.id); if (!booking || !provider || !provider.online) return json(res, 404, { error: "This job is not available" }); if (booking.providerUserId || !provider.skills.includes(booking.serviceId) || (booking.preferredProviderId && booking.preferredProviderId !== provider.id)) return json(res, 409, { error: "This job was already accepted or does not match your skills" }); booking.providerUserId = user.id; booking.status = "assigned"; booking.events ||= []; booking.events.push({ status: "assigned", at: new Date().toISOString() }); await persist(); return json(res, 200, { booking }); }
+    if (bookingMatch && req.method === "POST" && bookingMatch[2] === "customer-location") { const user = requireUser(req, res); if (!user) return; const booking = store.bookings.find((item) => item.id === bookingMatch[1] && item.customerId === user.id && !["completed", "cancelled"].includes(item.status)); if (!booking) return json(res, 404, { error: "Active booking not found" }); const data = await body(req); const latitude = Number(data.latitude); const longitude = Number(data.longitude); if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return json(res, 400, { error: "Invalid coordinates" }); booking.customerLocation = { latitude, longitude, updatedAt: new Date().toISOString() }; await persist(); return json(res, 200, { customerLocation: booking.customerLocation }); }
     if (bookingMatch && req.method === "POST" && bookingMatch[2] === "location") { const user = requireUser(req, res); if (!user) return; const booking = store.bookings.find((item) => item.id === bookingMatch[1] && item.providerUserId === user.id && !["completed", "cancelled"].includes(item.status)); if (!booking) return json(res, 404, { error: "Active assigned booking not found" }); const data = await body(req); const latitude = Number(data.latitude); const longitude = Number(data.longitude); if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return json(res, 400, { error: "Invalid coordinates" }); booking.providerLocation = { latitude, longitude, updatedAt: new Date().toISOString() }; await persist(); return json(res, 200, { providerLocation: booking.providerLocation }); }
     if (bookingMatch && req.method === "POST" && bookingMatch[2] === "review") { const user = requireUser(req, res); if (!user) return; const booking = store.bookings.find((item) => item.id === bookingMatch[1] && item.customerId === user.id && item.status === "completed"); if (!booking) return json(res, 404, { error: "Completed booking not found" }); if (store.reviews.some((item) => item.bookingId === booking.id)) return json(res, 409, { error: "This booking already has a review" }); const data = await body(req); const rating = Number(data.rating); if (!Number.isInteger(rating) || rating < 1 || rating > 5) return json(res, 400, { error: "Choose a rating from 1 to 5" }); const review = { id: randomUUID(), bookingId: booking.id, customerId: user.id, rating, comment: String(data.comment || "").slice(0, 1000), createdAt: new Date().toISOString() }; store.reviews.push(review); user.points = (user.points || 0) + 20; user.rewardHistory ||= []; user.rewardHistory.unshift({ id: randomUUID(), points: 20, label: "Booking review", labelHi: "सेवा समीक्षा", createdAt: new Date().toISOString() }); await persist(); return json(res, 201, { review, points: user.points }); }
     if (bookingMatch && req.method === "PATCH") { const user = requireUser(req, res); if (!user) return; const booking = store.bookings.find((item) => item.id === bookingMatch[1]); if (!booking) return json(res, 404, { error: "Booking not found" }); const data = await body(req); const allowedNext = { assigned: "en_route", en_route: "arrived", arrived: "in_progress", in_progress: "completed" }; if (user.id === booking.customerId && data.status === "cancelled" && ["confirmed", "assigned"].includes(booking.status)) booking.status = "cancelled"; else if (user.id === booking.providerUserId && allowedNext[booking.status] === data.status) booking.status = data.status; else return json(res, 403, { error: "This status change is not allowed" }); booking.events ||= []; booking.events.push({ status: booking.status, at: new Date().toISOString() }); if (booking.status === "completed" && !booking.pointsAwarded) { const customer = store.users.find((item) => item.id === booking.customerId); if (customer) { customer.points = (customer.points || 0) + 50; customer.rewardHistory ||= []; customer.rewardHistory.unshift({ id: randomUUID(), points: 50, label: `Completed ${booking.serviceName} booking`, labelHi: `${booking.serviceName} की सेवा पूरी`, createdAt: new Date().toISOString() }); booking.pointsAwarded = true; } } await persist(); return json(res, 200, { booking }); }

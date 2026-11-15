@@ -58,6 +58,22 @@ const serviceKeywords: Record<string, string[]> = {
   cleaner: ['clean', 'maid', 'sweep', 'wash', 'housekeeping', 'सफाई', 'झाड़ू', 'धुलाई', 'मेड', 'बाई'],
   farmer: ['farm', 'agriculture', 'crop', 'soil', 'खेती', 'फसल', 'किसान', 'मिट्टी', 'बुवाई'],
   tutor: ['tutor', 'teacher', 'study', 'education', 'class', 'शिक्षक', 'पढ़ाई', 'ट्यूटर', 'क्लास', 'पढ़ाना'],
+  crop: ['crop', 'farm', 'agriculture', 'farming', 'खेती', 'फसल', 'किसान'],
+  soil: ['soil test', 'soil testing', 'मिट्टी जांच', 'मिट्टी परीक्षण'],
+  tractor: ['tractor', 'farm equipment', 'ट्रैक्टर', 'कृषि उपकरण'],
+  dairy: ['dairy', 'milk', 'डेयरी', 'दूध'],
+  veterinary: ['vet', 'veterinary', 'livestock', 'animal doctor', 'पशु चिकित्सक', 'पशु डॉक्टर'],
+  pump: ['water pump', 'pump repair', 'पानी पंप', 'पंप मरम्मत'],
+  solar: ['solar', 'सोलर', 'सौर ऊर्जा'],
+  handicraft: ['handicraft', 'craft', 'हस्तशिल्प'],
+  biogas: ['biogas', 'बायोगैस'],
+  gardening: ['gardening', 'gardener', 'बागवानी', 'माली'],
+  painting: ['painter', 'painting', 'पेंटर', 'रंगाई'],
+  cooking: ['cook', 'cooking', 'chef', 'रसोइया', 'खाना बनाना'],
+  driving: ['driver', 'driving', 'ड्राइवर', 'गाड़ी चलाना'],
+  beauty: ['beauty', 'salon', 'makeup', 'ब्यूटी', 'सैलून'],
+  ac: ['ac repair', 'air conditioner', 'एसी मरम्मत'],
+  security: ['security guard', 'security', 'सुरक्षा गार्ड'],
 };
 
 const schemeKeywords = ['scheme', 'yojana', 'government', 'benefit', 'योजना', 'सरकार', 'लाभ', 'सरकारी', 'pm kisan', 'ayushman', 'skill india'];
@@ -73,7 +89,9 @@ function detectService(text: string): string | null {
 }
 
 const serviceIds: Record<string, string> = {
-  plumber: 'plumbing', electrician: 'electrical', carpenter: 'carpentry', cleaner: 'cleaning', tutor: 'tutoring',
+  plumber: 'plumbing', electrician: 'electrical', carpenter: 'carpentry', cleaner: 'cleaning', tutor: 'tutoring', farmer: 'crop',
+  crop: 'crop', soil: 'soil', tractor: 'tractor', dairy: 'dairy', veterinary: 'veterinary', pump: 'pump', solar: 'solar',
+  handicraft: 'handicraft', biogas: 'biogas', gardening: 'gardening', painting: 'painting', cooking: 'cooking', driving: 'driving', beauty: 'beauty', ac: 'ac', security: 'security',
 };
 export function getRequestedServiceId(text: string): string | null {
   const service = detectService(text.toLowerCase());

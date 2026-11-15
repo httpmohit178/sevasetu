@@ -1,37 +1,51 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, Shield, Home, Leaf, Palette, BookOpen, Truck, Wrench, Zap, Scissors, Utensils, ArrowRight, Wifi } from 'lucide-react';
 import { apiRequest } from '../lib/api-client';
-import { SmartImage } from '../components/ui/smart-image';
-import { serviceImage } from '../lib/image-sources';
 
 type Lang = 'en' | 'hi';
-type CatalogService = { id: string; name: string; nameHi: string; startingPrice: number; onlineProviders: number; category: string };
+type Area = 'all' | 'rural' | 'urban';
+type CatalogService = { id: string; name: string; nameHi: string; startingPrice: number; onlineProviders: number; category: string; area: 'rural' | 'urban' };
 const fallbackCatalog: CatalogService[] = [
-  { id: 'plumbing', name: 'Plumbing', nameHi: 'प्लंबिंग', startingPrice: 299, onlineProviders: 0, category: 'home' },
-  { id: 'electrical', name: 'Electrical', nameHi: 'इलेक्ट्रिकल', startingPrice: 349, onlineProviders: 0, category: 'home' },
-  { id: 'cleaning', name: 'Cleaning', nameHi: 'सफाई', startingPrice: 249, onlineProviders: 0, category: 'home' },
-  { id: 'painting', name: 'Painting', nameHi: 'पेंटिंग', startingPrice: 499, onlineProviders: 0, category: 'home' },
-  { id: 'carpentry', name: 'Carpentry', nameHi: 'बढ़ईगीरी', startingPrice: 399, onlineProviders: 0, category: 'home' },
-  { id: 'cooking', name: 'Cooking', nameHi: 'खाना पकाना', startingPrice: 299, onlineProviders: 0, category: 'food' },
-  { id: 'tutoring', name: 'Tutoring', nameHi: 'ट्यूटरिंग', startingPrice: 399, onlineProviders: 0, category: 'edu' },
-  { id: 'driving', name: 'Driving', nameHi: 'ड्राइविंग', startingPrice: 299, onlineProviders: 0, category: 'transport' },
-  { id: 'beauty', name: 'Beauty & Salon', nameHi: 'ब्यूटी और सैलून', startingPrice: 299, onlineProviders: 0, category: 'beauty' },
-  { id: 'ac', name: 'AC Repair', nameHi: 'AC मरम्मत', startingPrice: 499, onlineProviders: 0, category: 'home' },
-  { id: 'gardening', name: 'Gardening', nameHi: 'बागवानी', startingPrice: 249, onlineProviders: 0, category: 'agri' },
-  { id: 'security', name: 'Security', nameHi: 'सुरक्षा', startingPrice: 499, onlineProviders: 0, category: 'home' },
+  { id: 'crop', name: 'Crop Advisory', nameHi: 'फसल सलाह', startingPrice: 199, onlineProviders: 0, category: 'agri', area: 'rural' },
+  { id: 'soil', name: 'Soil Testing', nameHi: 'मिट्टी जांच', startingPrice: 249, onlineProviders: 0, category: 'agri', area: 'rural' },
+  { id: 'tractor', name: 'Tractor & Equipment', nameHi: 'ट्रैक्टर और उपकरण', startingPrice: 499, onlineProviders: 0, category: 'agri', area: 'rural' },
+  { id: 'dairy', name: 'Dairy Support', nameHi: 'डेयरी सहायता', startingPrice: 249, onlineProviders: 0, category: 'agri', area: 'rural' },
+  { id: 'veterinary', name: 'Veterinary Visit', nameHi: 'पशु चिकित्सा', startingPrice: 399, onlineProviders: 0, category: 'agri', area: 'rural' },
+  { id: 'pump', name: 'Water Pump Repair', nameHi: 'पानी पंप मरम्मत', startingPrice: 349, onlineProviders: 0, category: 'home', area: 'rural' },
+  { id: 'solar', name: 'Solar Setup', nameHi: 'सोलर सेटअप', startingPrice: 799, onlineProviders: 0, category: 'home', area: 'rural' },
+  { id: 'handicraft', name: 'Handicrafts', nameHi: 'हस्तशिल्प', startingPrice: 299, onlineProviders: 0, category: 'craft', area: 'rural' },
+  { id: 'biogas', name: 'Biogas Service', nameHi: 'बायोगैस सेवा', startingPrice: 449, onlineProviders: 0, category: 'agri', area: 'rural' },
+  { id: 'gardening', name: 'Gardening', nameHi: 'बागवानी', startingPrice: 249, onlineProviders: 0, category: 'agri', area: 'rural' },
+  { id: 'plumbing', name: 'Plumbing', nameHi: 'प्लंबिंग', startingPrice: 299, onlineProviders: 0, category: 'home', area: 'urban' },
+  { id: 'electrical', name: 'Electrical', nameHi: 'इलेक्ट्रिकल', startingPrice: 349, onlineProviders: 0, category: 'home', area: 'urban' },
+  { id: 'cleaning', name: 'Cleaning', nameHi: 'सफाई', startingPrice: 249, onlineProviders: 0, category: 'home', area: 'urban' },
+  { id: 'painting', name: 'Painting', nameHi: 'पेंटिंग', startingPrice: 499, onlineProviders: 0, category: 'home', area: 'urban' },
+  { id: 'carpentry', name: 'Carpentry', nameHi: 'बढ़ईगीरी', startingPrice: 399, onlineProviders: 0, category: 'home', area: 'urban' },
+  { id: 'cooking', name: 'Cooking', nameHi: 'खाना पकाना', startingPrice: 299, onlineProviders: 0, category: 'food', area: 'urban' },
+  { id: 'tutoring', name: 'Tutoring', nameHi: 'ट्यूटरिंग', startingPrice: 399, onlineProviders: 0, category: 'edu', area: 'urban' },
+  { id: 'driving', name: 'Driving', nameHi: 'ड्राइविंग', startingPrice: 299, onlineProviders: 0, category: 'transport', area: 'urban' },
+  { id: 'beauty', name: 'Beauty & Salon', nameHi: 'ब्यूटी और सैलून', startingPrice: 299, onlineProviders: 0, category: 'beauty', area: 'urban' },
+  { id: 'ac', name: 'AC Repair', nameHi: 'AC मरम्मत', startingPrice: 499, onlineProviders: 0, category: 'home', area: 'urban' },
+  { id: 'security', name: 'Security', nameHi: 'सुरक्षा', startingPrice: 499, onlineProviders: 0, category: 'home', area: 'urban' },
 ];
 const categories = [
   { id: 'all', label: 'All Services', labelHi: 'सभी सेवाएं', icon: Zap },
   { id: 'home', label: 'Home', labelHi: 'घरेलू सेवाएं', icon: Home },
   { id: 'agri', label: 'Agriculture', labelHi: 'कृषि', icon: Leaf },
+  { id: 'craft', label: 'Handicrafts', labelHi: 'हस्तशिल्प', icon: Palette },
   { id: 'edu', label: 'Education', labelHi: 'शिक्षा', icon: BookOpen },
   { id: 'beauty', label: 'Beauty', labelHi: 'सौंदर्य', icon: Scissors },
   { id: 'food', label: 'Food', labelHi: 'खाना', icon: Utensils },
   { id: 'transport', label: 'Transport', labelHi: 'परिवहन', icon: Truck },
 ];
-const icons = [Wrench, Zap, Home, Palette, Home, Utensils, BookOpen, Truck, Scissors, Wifi, Leaf, Shield];
+const serviceIcons: Record<string, typeof Wrench> = { crop: Leaf, soil: Leaf, tractor: Truck, dairy: Leaf, veterinary: Shield, pump: Wrench, solar: Zap, handicraft: Palette, biogas: Leaf, gardening: Leaf, plumbing: Wrench, electrical: Zap, cleaning: Home, painting: Palette, carpentry: Wrench, cooking: Utensils, tutoring: BookOpen, driving: Truck, beauty: Scissors, ac: Wifi, security: Shield };
+const areas: { id: Area; en: string; hi: string }[] = [
+  { id: 'all', en: 'Rural + Urban', hi: 'ग्रामीण + शहरी' },
+  { id: 'rural', en: 'Rural area', hi: 'ग्रामीण क्षेत्र' },
+  { id: 'urban', en: 'Urban area', hi: 'शहरी क्षेत्र' },
+];
 const sortOptions = [
   { value: 'popular', label: 'Most providers online', labelHi: 'ऑनलाइन प्रदाता' },
   { value: 'price_asc', label: 'Price: Low to High', labelHi: 'कम से अधिक कीमत' },
@@ -42,11 +56,15 @@ export default function ServicesPage() {
   const navigate = useNavigate();
   const [lang, setLang] = useState<Lang>('en');
   const [catalog, setCatalog] = useState<CatalogService[]>([]);
+  const [activeArea, setActiveArea] = useState<Area>(() => {
+    const requested = new URLSearchParams(window.location.search).get('area');
+    return requested === 'rural' || requested === 'urban' ? requested : 'all';
+  });
   const [activeCategory, setActiveCategory] = useState(() => {
     const requestedCategory = new URLSearchParams(window.location.search).get('category');
     return categories.some((category) => category.id === requestedCategory) ? requestedCategory! : 'all';
   });
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(() => new URLSearchParams(window.location.search).get('search') || '');
   const [sortBy, setSortBy] = useState('popular');
   const [loading, setLoading] = useState(true);
   const [bookingId, setBookingId] = useState('');
@@ -55,26 +73,33 @@ export default function ServicesPage() {
   const [catalogWarning, setCatalogWarning] = useState(false);
   const t = (en: string, hi: string) => lang === 'hi' ? hi : en;
 
-  const loadCatalog = async () => {
+  const loadCatalog = useCallback(async () => {
     try {
       const result = await apiRequest<{ services: CatalogService[] }>('/services');
       if (!Array.isArray(result.services)) throw new Error('Service catalogue response was invalid');
-      setCatalog(result.services);
+      const incoming = result.services.map((service) => ({ ...service, area: service.area === 'rural' || service.area === 'urban' ? service.area : (service.category === 'agri' || ['crop', 'soil', 'tractor', 'dairy', 'veterinary', 'pump', 'solar', 'handicraft', 'biogas', 'gardening'].includes(service.id) ? 'rural' as const : 'urban' as const) }));
+      const present = new Set(incoming.map((service) => service.id));
+      setCatalog([...incoming, ...fallbackCatalog.filter((service) => !present.has(service.id))]);
       setCatalogWarning(false);
     }
     catch { setCatalog(fallbackCatalog); setCatalogWarning(true); }
     finally { setLoading(false); }
-  };
-  useEffect(() => { void loadCatalog(); }, []);
+  }, []);
+  useEffect(() => {
+    void loadCatalog();
+    const refreshTimer = window.setInterval(() => void loadCatalog(), 30_000);
+    return () => window.clearInterval(refreshTimer);
+  }, [loadCatalog]);
 
   const filtered = useMemo(() => {
-    let result = catalog.filter((service) => (activeCategory === 'all' || service.category === activeCategory)
+    let result = catalog.filter((service) => (activeArea === 'all' || service.area === activeArea)
+      && (activeCategory === 'all' || service.category === activeCategory)
       && (!searchQuery || service.name.toLowerCase().includes(searchQuery.toLowerCase()) || service.nameHi.includes(searchQuery)));
     if (sortBy === 'popular') result = [...result].sort((a, b) => b.onlineProviders - a.onlineProviders);
     if (sortBy === 'price_asc') result = [...result].sort((a, b) => a.startingPrice - b.startingPrice);
     if (sortBy === 'price_desc') result = [...result].sort((a, b) => b.startingPrice - a.startingPrice);
     return result;
-  }, [catalog, activeCategory, searchQuery, sortBy]);
+  }, [catalog, activeArea, activeCategory, searchQuery, sortBy]);
 
   const book = async (service: CatalogService) => {
     if (!localStorage.getItem('sevasetu-token')) { navigate('/login', { state: { from: '/services' } }); return; }
@@ -98,18 +123,23 @@ export default function ServicesPage() {
       {error && <p role="alert" className="mb-4 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
       {catalogWarning && <p role="status" className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{t('Showing the service catalogue. Live provider availability is temporarily unavailable.', 'सेवाओं की सूची दिखाई जा रही है। लाइव प्रदाता उपलब्धता अभी उपलब्ध नहीं है।')} <button onClick={() => { setLoading(true); void loadCatalog(); }} className="ml-2 font-bold underline">{t('Retry', 'फिर कोशिश करें')}</button></p>}
       {bookingId && <p role="status" className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-green-300 bg-green-50 p-3 text-sm text-green-900">{t('Booking request created', 'बुकिंग अनुरोध भेज दिया गया')} · #{bookingId}<Link className="font-bold underline" to="/tracker">{t('Track it', 'स्थिति देखें')}</Link></p>}
+      <div className="mb-4 grid grid-cols-3 gap-2">{areas.map((area) => <button key={area.id} onClick={() => setActiveArea(area.id)} className={`rounded-2xl border px-3 py-3 text-sm font-bold ${activeArea === area.id ? 'border-primary bg-primary text-white' : 'border-border bg-card'}`}>{lang === 'hi' ? area.hi : area.en}</button>)}</div>
       <div className="mb-6 flex gap-2 overflow-x-auto pb-2">{categories.map(({ id, label, labelHi, icon: Icon }) => <button key={id} onClick={() => setActiveCategory(id)} className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold ${activeCategory === id ? 'bg-primary text-white' : 'border border-border bg-card text-muted-foreground'}`}><Icon size={13} />{lang === 'hi' ? labelHi : label}</button>)}</div>
       <div className="mb-5 flex items-center justify-between"><p className="text-sm text-muted-foreground">{loading ? t('Loading…', 'लोड हो रहा है…') : `${filtered.length} ${t('services', 'सेवाएं')}`}</p><select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="rounded-lg border border-border bg-card px-3 py-2 text-xs">{sortOptions.map((opt) => <option key={opt.value} value={opt.value}>{lang === 'hi' ? opt.labelHi : opt.label}</option>)}</select></div>
-      {loading ? <p className="py-12 text-center text-sm text-muted-foreground">{t('Loading service catalogue…', 'सेवाओं की सूची लोड हो रही है…')}</p> : filtered.length === 0 ? <div className="py-16 text-center"><Search className="mx-auto mb-3 text-muted-foreground" /><h2 className="font-bold">{t('No matching services', 'कोई मिलती-जुलती सेवा नहीं')}</h2><p className="mt-1 text-sm text-muted-foreground">{t('Try a different search or category.', 'दूसरा शब्द या श्रेणी आज़माएं।')}</p></div> : <AnimatePresence mode="wait"><motion.div key={`${activeCategory}-${searchQuery}-${sortBy}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {filtered.map((service, index) => { const Icon = icons[catalog.findIndex((item) => item.id === service.id)] || Wrench; return <motion.article key={service.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.025 }} className="overflow-hidden rounded-2xl border border-border bg-card">
-          <SmartImage src={serviceImage(service.category, service.name)} alt={`${service.name} service`} className="h-36 w-full" />
-          <div className="p-5">
-          <div className="mb-3 flex items-center justify-between"><div className="grid h-11 w-11 place-items-center rounded-xl bg-primary/10 text-primary"><Icon size={20} /></div>{service.onlineProviders > 0 && <span className="rounded-full bg-green-100 px-2 py-1 text-[10px] font-semibold text-green-800">{t('Online', 'ऑनलाइन')}</span>}</div>
-          <h2 className="font-bold">{lang === 'hi' ? service.nameHi : service.name}</h2>
+      {loading ? <p className="py-12 text-center text-sm text-muted-foreground">{t('Loading service catalogue…', 'सेवाओं की सूची लोड हो रही है…')}</p> : filtered.length === 0 ? <div className="py-16 text-center"><Search className="mx-auto mb-3 text-muted-foreground" /><h2 className="font-bold">{t('No matching services', 'कोई मिलती-जुलती सेवा नहीं')}</h2><p className="mt-1 text-sm text-muted-foreground">{t('Try a different search or category.', 'दूसरा शब्द या श्रेणी आज़माएं।')}</p></div> : <AnimatePresence mode="wait"><motion.div key={`${activeArea}-${activeCategory}-${searchQuery}-${sortBy}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+        {(activeArea === 'all' ? (['rural', 'urban'] as const) : [activeArea]).map((area) => {
+          const group = filtered.filter((service) => service.area === area);
+          if (group.length === 0) return null;
+          return <section key={area}><div className="mb-3 flex items-center justify-between"><h2 className="text-lg font-black">{area === 'rural' ? t('Rural area services', 'ग्रामीण क्षेत्र की सेवाएं') : t('Urban area services', 'शहरी क्षेत्र की सेवाएं')}</h2><span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold">{group.length} {t('services', 'सेवाएं')}</span></div><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{group.map((service, index) => { const Icon = serviceIcons[service.id] || Wrench; return <motion.article key={service.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.025 }} className="group rounded-2xl border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
+          <div className={`mb-4 flex h-24 items-center justify-center rounded-xl ${service.area === 'rural' ? 'bg-gradient-to-br from-green-50 to-lime-100 text-green-800' : 'bg-gradient-to-br from-orange-50 to-amber-100 text-orange-800'}`}><Icon size={36} strokeWidth={1.6} /></div>
+          <div>
+          <div className="mb-3 flex items-center justify-between"><div className="grid h-11 w-11 place-items-center rounded-xl bg-primary/10 text-primary"><Icon size={20} /></div><span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${service.area === 'rural' ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'}`}>{service.area === 'rural' ? t('Rural', 'ग्रामीण') : t('Urban', 'शहरी')}</span></div>
+          <h3 className="font-bold">{lang === 'hi' ? service.nameHi : service.name}</h3>
           <div className="my-3 flex items-center gap-2 text-xs text-muted-foreground"><Shield size={12} />{service.onlineProviders} {t('online providers', 'ऑनलाइन प्रदाता')}</div>
           <div className="flex items-center justify-between border-t border-border pt-3"><div><span className="text-lg font-black text-primary">₹{service.startingPrice}</span><span className="ml-1 text-[10px] text-muted-foreground">{t('starting', 'से शुरू')}</span></div><button disabled={busyId === service.id} onClick={() => void book(service)} className="flex items-center gap-1 rounded-full bg-primary px-3 py-2 text-[11px] font-bold text-white disabled:opacity-50">{busyId === service.id ? t('Sending…', 'भेज रहे हैं…') : t('Book', 'बुक करें')} <ArrowRight size={11} /></button></div>
           </div>
-        </motion.article>; })}
+        </motion.article>; })}</div></section>;
+        })}
       </motion.div></AnimatePresence>}
       <p className="mt-6 text-xs text-muted-foreground">{t('Ratings, reviews and provider counts are shown only when backed by actual customer activity.', 'रेटिंग, समीक्षाएं और प्रदाताओं की संख्या वास्तविक ग्राहक गतिविधि से अपडेट होती हैं।')}</p>
     </main>

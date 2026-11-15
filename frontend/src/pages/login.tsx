@@ -6,9 +6,8 @@ import {
   Globe, Zap, Star, Users, RefreshCw
 } from 'lucide-react';
 import { apiRequest } from '../lib/api-client';
-import { SmartImage } from '../components/ui/smart-image';
+import { SceneCard } from '../components/ui/scene-card';
 import { PhotoBanner } from '../components/ui/photo-banner';
-import { imageSources } from '../lib/image-sources';
 
 type Lang = 'en' | 'hi';
 type Step = 'phone' | 'email' | 'otp' | 'profile' | 'success';
@@ -152,7 +151,7 @@ export default function LoginPage() {
 
       {/* ── Left Panel (desktop) ───────────────────────────────────────────── */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-secondary via-secondary/90 to-primary flex-col justify-between p-12">
-        <SmartImage src={imageSources.community} alt="Colleagues collaborating around a table" className="absolute inset-0 h-full w-full opacity-25" />
+        <SceneCard scene="urban" alt="Animated city skyline" className="absolute inset-0 h-full w-full opacity-40" />
         {/* Background decoration */}
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-950/80 via-emerald-900/65 to-orange-900/75" />
         <div className="absolute bottom-0 right-0 w-80 h-80 rounded-full bg-white/5 translate-x-1/3 translate-y-1/3" />
@@ -247,7 +246,7 @@ export default function LoginPage() {
         </div>
 
         <div className="w-full max-w-sm">
-          <PhotoBanner src={imageSources.community} alt="Four colleagues collaborating around a laptop in a modern office" caption="Four colleagues collaborating around a laptop" className="mb-5 lg:hidden" />
+          <PhotoBanner scene="urban" alt="Animated city skyline" caption="Urban and rural services, one account" className="mb-5 lg:hidden" />
           {/* Lang toggle */}
           <div className="flex justify-end mb-6">
             <button

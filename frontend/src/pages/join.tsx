@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import { apiRequest } from '../lib/api-client';
 import { PhotoBanner } from '../components/ui/photo-banner';
-import { imageSources } from '../lib/image-sources';
 
 type Lang = 'en' | 'hi';
 type Step = 'intro' | 'personal' | 'skills' | 'docs' | 'success';
@@ -27,6 +26,15 @@ const serviceCategories = [
   { id: 'ac', label: 'AC Repair', labelHi: 'AC मरम्मत', icon: '❄️' },
   { id: 'gardening', label: 'Gardening', labelHi: 'बागवानी', icon: '🌱' },
   { id: 'security', label: 'Security Guard', labelHi: 'सुरक्षा गार्ड', icon: '🛡️' },
+  { id: 'crop', label: 'Crop Advisory', labelHi: 'फसल सलाह', icon: '🌽' },
+  { id: 'soil', label: 'Soil Testing', labelHi: 'मिट्टी जांच', icon: '🧪' },
+  { id: 'tractor', label: 'Tractor', labelHi: 'ट्रैक्टर', icon: '🚜' },
+  { id: 'dairy', label: 'Dairy', labelHi: 'डेयरी', icon: '🥛' },
+  { id: 'veterinary', label: 'Veterinary', labelHi: 'पशु चिकित्सा', icon: '🐄' },
+  { id: 'pump', label: 'Water Pump', labelHi: 'पानी पंप', icon: '💧' },
+  { id: 'solar', label: 'Solar', labelHi: 'सोलर', icon: '☀️' },
+  { id: 'handicraft', label: 'Handicrafts', labelHi: 'हस्तशिल्प', icon: '🧵' },
+  { id: 'biogas', label: 'Biogas', labelHi: 'बायोगैस', icon: '🔥' },
 ];
 
 const cities = [
@@ -238,7 +246,7 @@ export default function JoinPage() {
         </div>
 
         <div className="w-full max-w-md">
-          <PhotoBanner src={imageSources.provider} alt="Plumber repairing plumbing in a bathroom" caption="Plumber repairing plumbing in a bathroom" className="mb-5" />
+          <PhotoBanner scene="rural" alt="Animated village and city services" caption="Offer rural or urban services" className="mb-5" />
           {/* Lang toggle */}
           <div className="flex justify-end mb-4">
             <button

@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { apiRequest } from '../lib/api-client';
 import { PhotoBanner } from '../components/ui/photo-banner';
-import { imageSources } from '../lib/image-sources';
 import {
   Search, ChevronDown, ChevronUp, Shield,
   Leaf, Heart, BookOpen, Home, Zap, Users, Building2,
@@ -487,7 +486,7 @@ export default function SchemesPage() {
         <div className="absolute bottom-0 left-0 w-72 h-72 rounded-full bg-white/5 translate-y-1/2 -translate-x-1/3 pointer-events-none" />
 
         <div className="container mx-auto px-4 relative z-10">
-          <PhotoBanner src={imageSources.agriculture} alt="Rural farm with a grain silo and fields at sunset" caption="Rural farm with a grain silo and fields at sunset" className="mb-7" />
+          <PhotoBanner scene="agri" alt="Animated farmland" caption="Schemes for farms, homes, and health" className="mb-7" />
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}

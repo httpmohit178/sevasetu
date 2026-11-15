@@ -79,7 +79,7 @@ export function useVoiceInput({ lang = 'en', onResult, onError }: UseVoiceInputO
     return l === 'hi' ? 'hi-IN' : 'en-IN';
   }, []);
 
-  const startListening = useCallback(() => {
+  const startListening = useCallback(async () => {
     if (!isSupported) {
       onError?.('Voice input not supported in this browser');
       setVoiceState('error');
@@ -88,6 +88,19 @@ export function useVoiceInput({ lang = 'en', onResult, onError }: UseVoiceInputO
 
     const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognitionClass) return;
+
+    // Ask for mic access explicitly so denied permissions produce a useful message
+    // instead of a silent no-op from the browser speech service.
+    if (navigator.mediaDevices?.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach((track) => track.stop());
+      } catch {
+        setVoiceState('error');
+        onError?.('Microphone access was denied. Allow microphone access in your browser and try again.');
+        return;
+      }
+    }
 
     const recognition = new SpeechRecognitionClass();
     recognition.lang = getLangCode(lang);

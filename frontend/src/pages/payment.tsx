@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { apiRequest } from '../lib/api-client';
 import { PhotoBanner } from '../components/ui/photo-banner';
-import { imageSources } from '../lib/image-sources';
 import {
   CreditCard, Smartphone, Building2, Shield, Lock,
   CheckCircle, ArrowLeft, Zap, Gift,
@@ -182,7 +181,7 @@ export default function PaymentPage() {
       </div>
 
       <div className="container mx-auto px-4 py-6 max-w-4xl">
-        <PhotoBanner src={imageSources.home} alt="Modern white home exterior with plants" caption="Modern white home exterior with plants" className="mb-5" />
+        <PhotoBanner scene="home" alt="Animated home" caption="Pay for a home or farm service" className="mb-5" />
         {paymentError && <p role="alert" className="mb-4 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">{paymentError}</p>}
         <AnimatePresence mode="wait">
 

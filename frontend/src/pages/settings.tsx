@@ -11,7 +11,6 @@ import {
 import DashboardLayout, { NavItem } from '@/layouts/DashboardLayout';
 import { apiRequest } from '@/lib/api-client';
 import { PhotoBanner } from '../components/ui/photo-banner';
-import { imageSources } from '../lib/image-sources';
 
 type Lang = 'en' | 'hi';
 type Section = 'profile' | 'notifications' | 'language' | 'appearance' | 'security' | 'payments';
@@ -539,7 +538,7 @@ export default function SettingsPage() {
             {lang === 'hi' ? 'अपना अकाउंट और प्राथमिकताएं प्रबंधित करें' : 'Manage your account and preferences'}
           </p>
         </div>
-        <PhotoBanner src={imageSources.community} alt="Four colleagues collaborating around a laptop in a modern office" caption="Four colleagues collaborating around a laptop" className="mb-6" />
+        <PhotoBanner scene="urban" alt="Animated city skyline" caption="Your SevaSetu account" className="mb-6" />
 
         <div className="flex gap-5 items-start">
 

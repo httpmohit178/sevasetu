@@ -10,7 +10,6 @@ import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { getAIResponse, getRequestedServiceId, speakText, type AIMessage, type Provider, type Lang } from '@/lib/sevaAI';
 import { apiRequest } from '@/lib/api-client';
 import { PhotoBanner } from '../components/ui/photo-banner';
-import { imageSources } from '../lib/image-sources';
 
 // ─── Typing Indicator ─────────────────────────────────────────────────────────
 function TypingIndicator() {
@@ -284,13 +283,16 @@ export default function AIAssistantPage() {
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [pendingProvider, setPendingProvider] = useState<Provider | null>(null);
   const [actionError, setActionError] = useState('');
+  const [voiceError, setVoiceError] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // ── Voice Input ─────────────────────────────────────────────────────────
   const { voiceState, isSupported, startListening, stopListening, transcript } = useVoiceInput({
     lang,
+    onError: setVoiceError,
     onResult: (text) => {
+      setVoiceError('');
       setInputText(text);
       setTimeout(() => handleSend(text), 300);
     },
@@ -508,7 +510,7 @@ export default function AIAssistantPage() {
 
       {/* ── Main Layout ───────────────────────────────────────────────────── */}
       <div className="container mx-auto w-full max-w-6xl px-4 pt-4">
-        <PhotoBanner src={imageSources.community} alt="Four colleagues collaborating around a laptop in a modern office" caption="Four colleagues collaborating around a laptop" />
+        <PhotoBanner scene="voice" alt="Voice assistant" caption="Speak in Hindi or English" />
       </div>
       <div className="flex-1 container mx-auto px-4 py-6 flex gap-6 max-w-6xl">
 
@@ -654,6 +656,7 @@ export default function AIAssistantPage() {
               onClick={handleChatClick}
             >
               {actionError && <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-3 text-xs text-red-800">{actionError}</p>}
+              {voiceError && <p role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">{voiceError}</p>}
               <AnimatePresence>
                 {messages.map(msg => (
                   <MessageBubble
@@ -697,7 +700,7 @@ export default function AIAssistantPage() {
                 <button
                   onClick={isVoiceActive ? stopListening : startListening}
                   disabled={!isSupported}
-                  className={`lg:hidden w-10 h-10 rounded-full flex items-center justify-center transition-all shrink-0 ${
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shrink-0 ${
                     isVoiceActive
                       ? 'bg-red-500 text-white animate-pulse'
                       : isSupported
