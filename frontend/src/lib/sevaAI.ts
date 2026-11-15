@@ -189,8 +189,8 @@ export function getAIResponse(
     return {
       id: generateId(),
       role: 'assistant',
-      content: "Our service rates are transparent and competitive:\n\n• **Plumber** — ₹199–₹399\n• **Electrician** — ₹249–₹449\n• **Carpenter** — ₹299–₹599\n• **House Cleaner** — ₹149–₹299\n• **Home Tutor** — ₹399–₹799/hr\n\nAll prices include service guarantee. No hidden charges!",
-      contentHi: "हमारी सेवा दरें पारदर्शी और प्रतिस्पर्धी हैं:\n\n• **प्लंबर** — ₹199–₹399\n• **इलेक्ट्रीशियन** — ₹249–₹449\n• **बढ़ई** — ₹299–₹599\n• **सफाई कर्मी** — ₹149–₹299\n• **गृह शिक्षक** — ₹399–₹799/घंटा\n\nसभी कीमतों में सेवा गारंटी शामिल है। कोई छिपा शुल्क नहीं!",
+      content: "Prices depend on the service and location. Browse the live service catalog for current starting prices, then confirm the final amount with your provider before booking.",
+      contentHi: "कीमत सेवा और स्थान के अनुसार बदलती है। मौजूदा शुरुआती कीमत के लिए लाइव सेवा सूची देखें और बुकिंग से पहले प्रदाता से अंतिम राशि की पुष्टि करें।",
       timestamp: new Date(),
       type: 'text',
       quickReplies: [
@@ -234,14 +234,15 @@ export function getAIResponse(
 }
 
 // ─── Text-to-Speech ───────────────────────────────────────────────────────────
-export function speakText(text: string, lang: Lang = 'en'): void {
-  if (!('speechSynthesis' in window)) return;
+export function speakText(text: string, lang: Lang = 'en'): boolean {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') return false;
 
   // Cancel any ongoing speech
   window.speechSynthesis.cancel();
 
   // Clean markdown from text
-  const cleanText = text.replace(/\*\*/g, '').replace(/\*/g, '').replace(/\n/g, '. ');
+  const cleanText = text.replace(/\*\*/g, '').replace(/\*/g, '').replace(/[#_`]/g, '').replace(/\n+/g, '. ').trim();
+  if (!cleanText) return false;
 
   const utterance = new SpeechSynthesisUtterance(cleanText);
   utterance.lang = lang === 'hi' ? 'hi-IN' : 'en-IN';
@@ -252,8 +253,9 @@ export function speakText(text: string, lang: Lang = 'en'): void {
   // Try to find a matching voice
   const voices = window.speechSynthesis.getVoices();
   const targetLang = lang === 'hi' ? 'hi' : 'en';
-  const voice = voices.find(v => v.lang.startsWith(targetLang)) || voices[0];
+  const voice = voices.find(v => v.lang.toLowerCase().startsWith(targetLang));
   if (voice) utterance.voice = voice;
 
   window.speechSynthesis.speak(utterance);
+  return true;
 }

@@ -285,8 +285,10 @@ export default function AIAssistantPage() {
   const [pendingProvider, setPendingProvider] = useState<Provider | null>(null);
   const [actionError, setActionError] = useState('');
   const [voiceError, setVoiceError] = useState('');
+  const [aiStatus, setAiStatus] = useState<'checking' | 'configured' | 'builtin' | 'offline'>('checking');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const speechSupported = typeof window !== 'undefined' && 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined';
 
   // ── Voice Input ─────────────────────────────────────────────────────────
   const { voiceState, isSupported, startListening, stopListening, transcript } = useVoiceInput({
@@ -303,6 +305,14 @@ export default function AIAssistantPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
+
+  useEffect(() => {
+    let active = true;
+    apiRequest<{ ai?: string }>('/health')
+      .then(({ ai }) => { if (active) setAiStatus(ai === 'groq' || ai === 'openai' ? 'configured' : 'builtin'); })
+      .catch(() => { if (active) setAiStatus('offline'); });
+    return () => { active = false; };
+  }, []);
 
   // ── Sync voice transcript to input ──────────────────────────────────────
   useEffect(() => {
@@ -429,6 +439,10 @@ export default function AIAssistantPage() {
   }, []);
 
   const handleTtsToggle = () => {
+    if (!speechSupported) {
+      setVoiceError(lang === 'hi' ? 'इस ब्राउज़र में आवाज़ चलाना उपलब्ध नहीं है। Chrome या Edge आज़माएं।' : 'Text-to-speech is unavailable in this browser. Try Chrome or Edge.');
+      return;
+    }
     if (ttsEnabled) {
       window.speechSynthesis?.cancel();
       setTtsEnabled(false);
@@ -436,7 +450,10 @@ export default function AIAssistantPage() {
     }
     setTtsEnabled(true);
     const latestReply = [...messages].reverse().find((message) => message.role === 'assistant' && message.content);
-    if (latestReply) speakText(lang === 'hi' && latestReply.contentHi ? latestReply.contentHi : latestReply.content, lang);
+    if (latestReply && !speakText(lang === 'hi' && latestReply.contentHi ? latestReply.contentHi : latestReply.content, lang)) {
+      setTtsEnabled(false);
+      setVoiceError(lang === 'hi' ? 'इस डिवाइस पर आवाज़ चल नहीं सकी।' : 'This device could not start spoken playback.');
+    }
   };
 
   // ── Handle quick reply delegation from DOM ──────────────────────────────
@@ -477,9 +494,9 @@ export default function AIAssistantPage() {
                   Seva AI
                 </p>
                 <div className="flex items-center gap-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                  <div className={`w-1.5 h-1.5 rounded-full ${aiStatus === 'configured' ? 'bg-green-500' : aiStatus === 'offline' ? 'bg-amber-500' : 'bg-slate-400'}`} />
                   <p className="text-[10px] text-muted-foreground">
-                    {lang === 'hi' ? 'AI सहायक • हिंदी + English' : 'AI assistant • Hindi + English'}
+                    {aiStatus === 'checking' ? (lang === 'hi' ? 'AI सेवा जांच रहे हैं…' : 'Checking AI service…') : aiStatus === 'configured' ? (lang === 'hi' ? 'AI मॉडल जुड़ा है • हिंदी + English' : 'AI model connected • Hindi + English') : aiStatus === 'builtin' ? (lang === 'hi' ? 'बिल्ट-इन सहायक • हिंदी + English' : 'Built-in assistant • Hindi + English') : (lang === 'hi' ? 'API ऑफ़लाइन • बिल्ट-इन सहायक चालू' : 'API offline • built-in assistant active')}
                   </p>
                 </div>
               </div>
@@ -491,7 +508,9 @@ export default function AIAssistantPage() {
             {/* TTS Toggle */}
             <button
               onClick={handleTtsToggle}
-              title={ttsEnabled ? 'Mute voice' : 'Enable voice'}
+              disabled={!speechSupported}
+              aria-label={ttsEnabled ? 'Mute spoken replies' : 'Enable spoken replies'}
+              title={!speechSupported ? (lang === 'hi' ? 'इस ब्राउज़र में उपलब्ध नहीं' : 'Unavailable in this browser') : ttsEnabled ? 'Mute voice' : 'Enable voice'}
               className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
                 ttsEnabled ? 'bg-primary text-white' : 'bg-muted text-muted-foreground hover:bg-primary/10'
               }`}
@@ -538,7 +557,7 @@ export default function AIAssistantPage() {
             <div className="flex justify-center mb-4">
               <motion.button
                 onClick={isVoiceActive ? stopListening : startListening}
-                disabled={!isSupported}
+                disabled={!isSupported || voiceState === 'processing'}
                 animate={isVoiceActive ? { scale: [1, 1.1, 1] } : {}}
                 transition={{ duration: 1.5, repeat: Infinity }}
                 className={`w-20 h-20 rounded-full flex items-center justify-center shadow-lg transition-all ${
@@ -570,11 +589,13 @@ export default function AIAssistantPage() {
               </div>
             )}
 
-            <p className="text-center text-xs text-muted-foreground">
+            <p role="status" className="text-center text-xs text-muted-foreground">
               {!isSupported
                 ? (lang === 'hi' ? 'आवाज़ समर्थित नहीं' : 'Voice not supported')
                 : isVoiceActive
                 ? (lang === 'hi' ? '🎤 सुन रहा हूं...' : '🎤 Listening...')
+                : voiceState === 'processing'
+                ? (lang === 'hi' ? 'आपकी आवाज़ समझ रहे हैं…' : 'Understanding your request…')
                 : (lang === 'hi' ? 'बोलने के लिए दबाएं' : 'Tap to speak')}
             </p>
 
@@ -711,7 +732,7 @@ export default function AIAssistantPage() {
                 {/* Voice button (mobile) */}
                 <button
                   onClick={isVoiceActive ? stopListening : startListening}
-                  disabled={!isSupported}
+                  disabled={!isSupported || voiceState === 'processing'}
                   className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shrink-0 ${
                     isVoiceActive
                       ? 'bg-red-500 text-white animate-pulse'
@@ -741,7 +762,7 @@ export default function AIAssistantPage() {
                 {/* Send button */}
                 <button
                   onClick={() => handleSend()}
-                  disabled={!inputText.trim() && !isTyping}
+                  disabled={!inputText.trim() || isTyping}
                   className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shrink-0 shadow-sm"
                 >
                   <Send size={15} />

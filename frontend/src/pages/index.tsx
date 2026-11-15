@@ -179,9 +179,11 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [platformSummary, setPlatformSummary] = useState<{ serviceCount: number; ruralServiceCount: number; urbanServiceCount: number; onlineProviderCount: number } | null>(null);
   const [apiConnected, setApiConnected] = useState<boolean | null>(null);
+  const [voiceError, setVoiceError] = useState('');
   const { voiceState, isSupported, startListening, stopListening } = useVoiceInput({
     lang,
-    onResult: (text) => { setSearchQuery(text); navigate(`/services?search=${encodeURIComponent(text)}`); },
+    onError: setVoiceError,
+    onResult: (text) => { setVoiceError(''); setSearchQuery(text); navigate(`/services?search=${encodeURIComponent(text)}`); },
   });
   const isListening = voiceState === 'listening';
   const tx = t[lang];
@@ -360,7 +362,8 @@ export default function HomePage() {
                       🎤 {lang === 'hi' ? 'सुन रहा हूं...' : 'Listening...'}
                     </p>
                   )}
-                  {voiceState === 'error' && <p role="status" className="mt-1 text-center text-xs text-amber-700">{lang === 'hi' ? 'माइक की अनुमति दें और फिर कोशिश करें।' : 'Allow microphone access and try again.'}</p>}
+                  {voiceState === 'processing' && <p role="status" className="mt-1 text-center text-xs text-primary">{lang === 'hi' ? 'आपकी आवाज़ समझ रहे हैं…' : 'Understanding your request…'}</p>}
+                  {voiceError && <p role="alert" className="mt-1 text-center text-xs text-amber-700">{voiceError}</p>}
                 </motion.div>
               </motion.div>
             </div>
