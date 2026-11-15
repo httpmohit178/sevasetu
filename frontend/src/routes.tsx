@@ -1,6 +1,7 @@
 import { RouteObject } from 'react-router-dom';
 import { lazy } from 'react';
 import HomePage from './pages/index';
+import RequireAuth from './components/RequireAuth';
 
 // Lazy load components for code splitting (except HomePage for instant loading)
 const NotFoundPage = lazy(() => import('./pages/_404'));
@@ -20,15 +21,15 @@ export const routes: RouteObject[] = [
   { path: '/', element: <HomePage /> },
   { path: '/assistant', element: <AIAssistantPage /> },
   { path: '/services', element: <ServicesPage /> },
-  { path: '/tracker', element: <TrackerPage /> },
-  { path: '/rewards', element: <RewardsPage /> },
-  { path: '/payment', element: <PaymentPage /> },
+  { path: '/tracker', element: <RequireAuth role="customer"><TrackerPage /></RequireAuth> },
+  { path: '/rewards', element: <RequireAuth role="customer"><RewardsPage /></RequireAuth> },
+  { path: '/payment', element: <RequireAuth role="customer"><PaymentPage /></RequireAuth> },
   { path: '/schemes', element: <SchemesPage /> },
   { path: '/login', element: <LoginPage /> },
   { path: '/join', element: <JoinPage /> },
-  { path: '/dashboard', element: <UserDashboardPage /> },
-  { path: '/provider-dashboard', element: <ProviderDashboardPage /> },
-  { path: '/settings', element: <SettingsPage /> },
+  { path: '/dashboard', element: <RequireAuth role="customer"><UserDashboardPage /></RequireAuth> },
+  { path: '/provider-dashboard', element: <RequireAuth role="provider"><ProviderDashboardPage /></RequireAuth> },
+  { path: '/settings', element: <RequireAuth><SettingsPage /></RequireAuth> },
   { path: '*', element: <NotFoundPage /> },
 ];
 

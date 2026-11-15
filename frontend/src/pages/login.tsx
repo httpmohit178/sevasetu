@@ -88,7 +88,11 @@ export default function LoginPage() {
   const location = useLocation();
   const requestedPath = (location.state as { from?: string } | null)?.from || new URLSearchParams(location.search).get('redirect');
   const redirectPath = requestedPath?.startsWith('/') && !requestedPath.startsWith('//') ? requestedPath : '';
-  useEffect(() => { if (redirectPath === '/join') setAccountType('provider'); }, [redirectPath]);
+  useEffect(() => {
+    const requestedType = (location.state as { accountType?: string } | null)?.accountType;
+    if (requestedType === 'provider' || redirectPath === '/join' || redirectPath === '/provider-dashboard') setAccountType('provider');
+    else if (requestedType === 'customer' || redirectPath) setAccountType('customer');
+  }, [location.state, redirectPath]);
   const navigateAfterLogin = async (role?: string) => {
     if (redirectPath) { navigate(redirectPath, { replace: true }); return; }
     if (role === 'provider') {

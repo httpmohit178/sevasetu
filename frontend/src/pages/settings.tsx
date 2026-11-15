@@ -266,6 +266,7 @@ function AppearanceSection({ lang }: { lang: Lang }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function SettingsPage() {
   const [lang, setLang] = useAppLanguage();
+  const isProvider = localStorage.getItem('sevasetu-role') === 'provider';
   const [activeSection, setActiveSection] = useState<Section>('profile');
   const [account, setAccount] = useState({ name: 'User', city: 'India' });
   const [notifications, setNotifications] = useState(0);
@@ -278,7 +279,7 @@ export default function SettingsPage() {
     apiRequest<{ bookings: Array<{ status: string }> }>('/bookings').then(({ bookings }) => setNotifications(bookings.filter(item => ['confirmed', 'assigned', 'in_progress'].includes(item.status)).length)).catch(() => undefined);
   }, []);
 
-  const navItems: NavItem[] = [
+  const customerNavItems: NavItem[] = [
     { href: '/dashboard', label: 'Dashboard', labelHi: 'डैशबोर्ड', icon: <LayoutDashboard size={17} /> },
     { href: '/services', label: 'Book Service', labelHi: 'सेवा बुक करें', icon: <ShoppingBag size={17} /> },
     { href: '/tracker', label: 'Track Order', labelHi: 'ऑर्डर ट्रैक करें', icon: <MapPin size={17} /> },
@@ -286,13 +287,18 @@ export default function SettingsPage() {
     { href: '/schemes', label: 'Govt Schemes', labelHi: 'सरकारी योजनाएं', icon: <Building2 size={17} /> },
     { href: '/assistant', label: 'AI Assistant', labelHi: 'AI सहायक', icon: <Zap size={17} /> },
   ];
+  const navItems: NavItem[] = isProvider ? [
+    { href: '/provider-dashboard', label: 'Provider dashboard', labelHi: 'प्रदाता डैशबोर्ड', icon: <LayoutDashboard size={17} /> },
+    { href: '/assistant', label: 'Seva AI', labelHi: 'सेवा AI', icon: <Zap size={17} /> },
+  ] : customerNavItems;
+  const visibleSections = isProvider ? sections.filter((section) => section.id !== 'payments') : sections;
 
   const activeInfo = sections.find(s => s.id === activeSection)!;
 
   return (
     <DashboardLayout
       navItems={navItems}
-      userType="user"
+      userType={isProvider ? 'provider' : 'user'}
       userName={account.name}
       userCity={account.city}
       lang={lang}
@@ -317,7 +323,7 @@ export default function SettingsPage() {
 
           {/* ── Section Nav (desktop sidebar) ─────────────────────────────── */}
           <nav className="hidden lg:flex flex-col w-52 shrink-0 bg-background rounded-2xl border border-border overflow-hidden">
-            {sections.map(s => (
+            {visibleSections.map(s => (
               <button
                 key={s.id}
                 onClick={() => setActiveSection(s.id)}
@@ -340,7 +346,7 @@ export default function SettingsPage() {
           {/* ── Mobile Section Tabs ────────────────────────────────────────── */}
           <div className="lg:hidden w-full mb-4">
             <div className="flex gap-1.5 overflow-x-auto pb-1">
-              {sections.map(s => (
+              {visibleSections.map(s => (
                 <button
                   key={s.id}
                   onClick={() => setActiveSection(s.id)}
